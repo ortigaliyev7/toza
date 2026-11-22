@@ -97,13 +97,27 @@ export type ArchivedMessage = {
   edits?: {t: number; text: string}[]; // oldingi versiyalar
   deleted?: number;                // o'chirilgan vaqt (sekund)
   voice?: {mime: string; dur: number; b64: string}; // ovozli xabar (faqat `v:` yozuvlarida): kichik, bir marta yuklanadi
+  media?: {kind: 'photo' | 'round'; mime: string; dur: number; i: number; n: number; b64: string}; // rasm / dumaloq video bo'lagi (faqat `m:` yozuvlarida)
   u: number;                       // oxirgi o'zgarish vaqti (ms) — birlashtirishda yangisi yutadi
 };
+
+export function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
 
 export const keyOf = (peerId: string | number, mid: number) => `${peerId}:${mid}`;
 /** Ovozli xabar alohida yozuvda (`v:<peer>:<mid>`): xabar keyin o'chirilsa/tahrirlansa ovoz qayta yuklanmaydi (hajm oshmaydi). */
 export const voiceKey = (peerId: string | number, mid: number) => `v:${keyOf(peerId, mid)}`;
 export const isVoiceKey = (k: string) => k.startsWith('v:');
+/** Rasm va dumaloq video: bo'laklarga bo'lingan alohida yozuvlar `m:<peer>:<mid>:<i>` (bir marta yuklanadi). */
+export const mediaKey = (peerId: string | number, mid: number, i: number) => `m:${keyOf(peerId, mid)}:${i}`;
+export const isMediaKey = (k: string) => k.startsWith('m:');
+/** Matn emas, fayl yozuvi (ovoz/rasm/video): xabarlar ro'yxati va hisoblarda alohida. */
+export const isBlobKey = (k: string) => isVoiceKey(k) || isMediaKey(k);
+export const MEDIA_PART_BYTES = 700_000;           // bitta yozuvdagi xom bayt (base64 ~933 KB: bitta bo'lakka sig'adi)
+export const MEDIA_MAX_BYTES = {photo: 5_000_000, round: 15_000_000};
 export const VOICE_MAX_BYTES = 1_000_000;         // bundan katta ovoz saqlanmaydi (taxminan 2-3 daqiqa)
 
 export interface ArchiveStore {
@@ -168,6 +182,31 @@ export class Archive {
     return true;
   }
 
+  /** Rasm yoki dumaloq videoni bo'laklab saqlaydi (bir marta). Qaytaradi: saqlandimi (katta bo'lsa yoki bor bo'lsa — yo'q). */
+  async captureMedia(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, kind: 'photo' | 'round', mime: string, dur: number, bytes: Uint8Array): Promise<boolean> {
+    if(!bytes.length || bytes.length > MEDIA_MAX_BYTES[kind]) return false;
+    if(await this.store.get(mediaKey(m.peerId, m.mid, 0))) return false;
+    const n = Math.ceil(bytes.length / MEDIA_PART_BYTES);
+    for(let i = 0; i < n; i++) {
+      const part = bytes.subarray(i * MEDIA_PART_BYTES, (i + 1) * MEDIA_PART_BYTES);
+      await this.store.put({k: mediaKey(m.peerId, m.mid, i), peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: '', kind: 'media-blob', media: {kind, mime, dur, i, n, b64: toBase64(part)}, u: this.now()}, true);
+    }
+    return true;
+  }
+
+  /** Saqlangan rasm/dumaloq video: hamma bo'laklar bo'lsa birlashtirib qaytaradi, aks holda undefined. */
+  async mediaOf(peerId: string | number, mid: number): Promise<{kind: 'photo' | 'round'; mime: string; dur: number; b64: string[]} | undefined> {
+    const first = (await this.store.get(mediaKey(peerId, mid, 0)))?.media;
+    if(!first) return undefined;
+    const b64: string[] = [first.b64];
+    for(let i = 1; i < first.n; i++) {
+      const part = (await this.store.get(mediaKey(peerId, mid, i)))?.media;
+      if(!part) return undefined;
+      b64.push(part.b64);
+    }
+    return {kind: first.kind, mime: first.mime, dur: first.dur, b64};
+  }
+
   async voiceOf(peerId: string | number, mid: number) {
     return (await this.store.get(voiceKey(peerId, mid)))?.voice;
   }
@@ -187,7 +226,7 @@ export class Archive {
   }
 
   async deletedMessages(): Promise<ArchivedMessage[]> {
-    return (await this.store.all()).filter((x) => x.deleted && !isVoiceKey(x.k)).sort((x, y) => y.deleted! - x.deleted!);
+    return (await this.store.all()).filter((x) => x.deleted && !isBlobKey(x.k)).sort((x, y) => y.deleted! - x.deleted!);
   }
 
   /** Tiklangan nusxalarni mahalliy arxivga qo'shadi (birlashtirib). Qaytaradi: yangi yoki o'zgargan yozuvlar soni. */
@@ -217,13 +256,15 @@ export class TozaApiError extends Error {
   }
 }
 
-export type SyncStatus = {used: number; quota: number; chunks: number; linked: boolean; updated: number};
+export type SyncStatus = {used: number; quota: number; chunks: number; linked: boolean; paid: boolean; updated: number};
 
 export class Sync {
   private nextSeq: number | null = null;
-  private o: {baseUrl: string; keys: Keys; store: ArchiveStore; fetch?: typeof fetch; maxBatchBytes?: number};
+  private o: {baseUrl: string; keys: Keys; store: ArchiveStore; fetch?: typeof fetch; maxBatchBytes?: number; mediaAllowed?: () => boolean};
+  /** Server «faqat obunada» (402) deb rad etdi: shu sessiyada fayllar yuborilmaydi (xabar matnlari yuboriladi). */
+  mediaBlocked = false;
 
-  constructor(o: {baseUrl: string; keys: Keys; store: ArchiveStore; fetch?: typeof fetch; maxBatchBytes?: number}) {
+  constructor(o: {baseUrl: string; keys: Keys; store: ArchiveStore; fetch?: typeof fetch; maxBatchBytes?: number; mediaAllowed?: () => boolean}) {
     this.o = o;
   }
 
@@ -249,7 +290,7 @@ export class Sync {
   async status(): Promise<SyncStatus> {
     const j = await (await this.call('GET', '/tb/list')).json();
     this.nextSeq = j.chunks.length ? Math.max(...j.chunks.map((c: any) => c.seq)) + 1 : 0;
-    return {used: j.used, quota: j.quota, chunks: j.chunks.length, linked: j.linked, updated: j.updated};
+    return {used: j.used, quota: j.quota, chunks: j.chunks.length, linked: j.linked, paid: !!j.paid, updated: j.updated};
   }
 
   /** O'zgargan yozuvlarni shifrlab yuklaydi. Qaytaradi: yuklangan bo'laklar soni. */
@@ -257,8 +298,13 @@ export class Sync {
     const max = this.o.maxBatchBytes || 1_500_000;
     let chunks = 0;
     for(;;) {
-      const pending = await this.o.store.dirty(2000);
+      const mediaOk = () => !this.mediaBlocked && (!this.o.mediaAllowed || this.o.mediaAllowed());
+      // avval matn, keyin fayllar (ular alohida bo'laklarda: server fayllarni «media» deb ajratadi)
+      const all = await this.o.store.dirty(2000);
+      const text = all.filter((m) => !isBlobKey(m.k));
+      const pending = text.length ? text : mediaOk() ? all.filter((m) => isBlobKey(m.k)) : [];
       if(!pending.length) return chunks;
+      const media = !text.length;
       const batch: ArchivedMessage[] = [];
       let size = 0;
       for(const rec of pending) {
@@ -269,7 +315,12 @@ export class Sync {
       }
       if(this.nextSeq === null) await this.status();
       const body = await encryptChunk(this.o.keys.key, te.encode(JSON.stringify({v: 1, msgs: batch})));
-      await this.call('PUT', `/tb/chunk/${this.nextSeq}`, body as BodyInit, {'Content-Type': 'application/octet-stream'});
+      try {
+        await this.call('PUT', `/tb/chunk/${this.nextSeq}`, body as BodyInit, {'Content-Type': 'application/octet-stream', 'X-TB-Kind': media ? 'media' : 'text'});
+      } catch(e) {
+        if(media && e instanceof TozaApiError && e.code === 'paid_only') { this.mediaBlocked = true; continue; }
+        throw e;
+      }
       this.nextSeq!++;
       await this.o.store.clearDirty(batch.map((m) => ({k: m.k, u: m.u})));
       chunks++;

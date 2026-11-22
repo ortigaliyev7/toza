@@ -1,4 +1,4 @@
-import {archive, counts, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
+import {archive, chatEnabled, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
   bad_code: 'Kod noto\'g\'ri yozilgan. 26 belgi bo\'lishi kerak (harf va 2–7 raqamlari).',
@@ -103,18 +103,19 @@ export function openTozaBackup() {
       const c = await counts();
       let srv = '';
       try { const s = await serverStatus(); if(s) srv = ` · Serverda: ${fmtSize(s.used)} / ${fmtSize(s.quota)}${s.linked ? ' (obuna ulangan)' : ''}`; } catch(e) { srv = ' · Server: ' + errText(e); }
-      info.textContent = `Saqlangan: ${c.total} ta xabar · Ovozli: ${c.voices} · O'chirilgan: ${c.deleted} · Yuklanmagan: ${c.pending}${srv}` + (state.lastError ? ` · Oxirgi xato: ${state.lastError}` : '');
+      info.textContent = `Saqlangan: ${c.total} ta xabar · Ovoz: ${c.voices} · Rasm/video: ${c.files} · O'chirilgan: ${c.deleted} · Yuklanmagan: ${c.pending}${srv}` + (state.lastError ? ` · Oxirgi xato: ${state.lastError}` : '');
     };
     show(
       title('Toza zaxirasi: yoqilgan'),
       info,
       row(
         btn('Hozir saqlash', async() => { msg.replaceChildren(); try { const n = await flushNow(); msg.append(note(n ? `Yuklandi (${n} bo'lak).` : 'Yangi narsa yo\'q.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); }),
+        btn('Chatlar', async() => { await showChats(list); }, true),
         btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true),
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Obuna bo\'lsa zaxira ko\'proq joy oladi. Sharpa botida /zaxira yozing va kodni kiriting.'),
+      note('Matn bepul saqlanadi. Ovozli xabar, rasm va dumaloq video faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       list,
@@ -127,6 +128,25 @@ export function openTozaBackup() {
     refresh();
   }
 
+  async function showChats(list: HTMLElement) {
+    const rows = await chatUsage();
+    list.replaceChildren(h('b', {}, 'Zaxira chatlari'), note('Faqat shaxsiy chatlar (odam bilan yozishma) saqlanadi: guruh va kanallar yo\'q. Kerakmas chatni o\'chirib qo\'ysangiz, yangi xabarlari saqlanmaydi.'));
+    const titles = new Map<string, string>();
+    for(const e of rows.filter((x) => Number(x.peerId) > 0).slice(0, 300)) {
+      titles.set(e.peerId, await peerTitle(e.peerId));
+      let on = chatEnabled(e.peerId);
+      const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+      const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--primary-color,#3390ec)' : 'transparent'; };
+      paint();
+      const item = Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);cursor:pointer;user-select:none;'}, box,
+        h('div', {style: 'flex:1;min-width:0'}, h('div', {style: 'font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, titles.get(e.peerId) || e.peerId),
+          h('div', {style: 'font-size:12px;opacity:.7'}, `${e.msgs} xabar${e.files ? ` · ${e.files} fayl` : ''} · ${fmtSize(e.bytes)}`))), {role: 'checkbox', tabIndex: 0,
+        onclick: () => { on = !on; setChatEnabled(e.peerId, on); paint(); }});
+      list.append(item);
+    }
+    if(!rows.length) list.append(note('Hozircha saqlangan chat yo\'q.'));
+  }
+
   async function showDeleted(list: HTMLElement) {
     const items = await archive.deletedMessages();
     list.replaceChildren(h('b', {}, `O'chirilgan xabarlar (${items.length})`));
@@ -136,10 +156,14 @@ export function openTozaBackup() {
       if(!titles.has(m.peerId)) titles.set(m.peerId, await peerTitle(m.peerId));
       const voice = await archive.voiceOf(m.peerId, m.mid);
       const player = voice ? [Object.assign(h('audio', {style: 'width:100%;margin-top:4px;'}), {controls: true, preload: 'none', src: URL.createObjectURL(new Blob([Uint8Array.from(atob(voice.b64), (c) => c.charCodeAt(0))], {type: voice.mime}))})] : [];
+      const fileM = await archive.mediaOf(m.peerId, m.mid);
+      const toBlob = (parts: string[], mime: string) => URL.createObjectURL(new Blob(parts.map((x) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0))), {type: mime}));
+      const fileEl = fileM ? [fileM.kind === 'photo' ? Object.assign(h('img', {style: 'max-width:100%;border-radius:10px;margin-top:4px;'}), {src: toBlob(fileM.b64, fileM.mime)}) : Object.assign(h('video', {style: 'max-width:240px;width:100%;border-radius:50%;margin-top:4px;aspect-ratio:1/1;object-fit:cover;'}), {controls: true, preload: 'none', src: toBlob(fileM.b64, fileM.mime)})] : [];
       list.append(h('div', {style: 'padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);'},
         h('div', {style: 'font-size:12px;opacity:.7'}, `${titles.get(m.peerId)} · ${fmtDate(m.date)} · o'chirilgan ${fmtDate(m.deleted!)}`),
-        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
+        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : fileM ? (fileM.kind === 'photo' ? 'Rasm' : 'Dumaloq video') : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
         ...player,
+        ...fileEl,
         ...(m.edits?.length ? [h('div', {style: 'font-size:12px;opacity:.7'}, `Tahrirlangan (${m.edits.length}): oldingi: ` + m.edits.map((e) => e.text).join(' → '))] : [])));
     }
   }

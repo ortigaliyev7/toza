@@ -1,6 +1,7 @@
 import rootScope from '@lib/rootScope';
 import appDownloadManager from '@lib/appDownloadManager';
-import {Archive, Sync, VOICE_MAX_BYTES, isVoiceKey, voiceKey, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
+import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
+import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, voiceKey, mediaKey, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
 import type {Incoming, SyncStatus} from './core';
 import {IdbStore} from './idb';
 
@@ -47,7 +48,27 @@ function toIncoming(m: any): Incoming | null {
   return {peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.fromId !== undefined ? String(m.fromId) : undefined, out: !!m.pFlags?.out, text: m.message || '', kind: m.media?._};
 }
 
-const voiceTried = new Set<string>();
+// ---- Qaysi chatlar saqlanadi: faqat shaxsiy (odam bilan) chatlar; foydalanuvchi alohida chatni o'chira oladi (localStorage).
+const LS_OFF = 'toza_chats_off';
+const offSet = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(LS_OFF) || '[]')); } catch{ return new Set(); } };
+export const isPrivatePeer = (peerId: string | number) => Number(peerId) > 0;
+export const chatEnabled = (peerId: string | number) => isPrivatePeer(peerId) && !offSet().has(String(peerId));
+export function setChatEnabled(peerId: string | number, on: boolean) {
+  const o = offSet();
+  if(on) o.delete(String(peerId)); else o.add(String(peerId));
+  localStorage.setItem(LS_OFF, JSON.stringify([...o]));
+}
+
+// ---- Obuna bor-yo'qligi (serverdan): ovoz, rasm va dumaloq video faqat obunada
+let paid = false;
+export const isPaid = () => paid;
+export async function refreshPaid() {
+  try { paid = !!(sync && (await sync.status()).paid); } catch{ /* tarmoq yo'q: oldingi qiymat qoladi */ }
+  return paid;
+}
+
+const mediaTried = new Set<string>();
+const toBytes = async(blob: Blob) => new Uint8Array(await blob.arrayBuffer());
 const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
   const r = new FileReader();
   r.onload = () => resolve(String(r.result).split(',')[1] || '');
@@ -55,32 +76,48 @@ const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-/** Ovozli xabar (kichik): yuklab olib, shifrlanadigan arxivga qo'shamiz. Xato bo'lsa xabar matni baribir saqlanadi. */
-async function captureVoice(m: any, inc: Incoming) {
-  const doc = m?.media?.document;
-  if(m?.media?._ !== 'messageMediaDocument' || !doc || doc.type !== 'voice') return;
-  if(Number(doc.size) > VOICE_MAX_BYTES) return;
-  const k = voiceKey(inc.peerId, inc.mid);
-  if(voiceTried.has(k)) return;
-  voiceTried.add(k);
+/** Ovoz, rasm, dumaloq video (obunada): yuklab olib shifrlanadigan arxivga qo'shamiz. Xato bo'lsa xabar matni baribir saqlanadi. */
+async function captureMedia(m: any, inc: Incoming) {
+  if(!paid || !m?.media) return;
+  const k = inc.peerId + ':' + inc.mid;
+  if(mediaTried.has(k)) return;
+  const doc = m.media.document, photo = m.media.photo;
+  const isVoice = m.media._ === 'messageMediaDocument' && doc?.type === 'voice';
+  const isRound = m.media._ === 'messageMediaDocument' && doc?.type === 'round';
+  const isPhoto = m.media._ === 'messageMediaPhoto' && !!photo;
+  if(!isVoice && !isRound && !isPhoto) return;
+  if((isVoice || isRound) && Number(doc.size) > (isVoice ? VOICE_MAX_BYTES : MEDIA_MAX_BYTES.round)) return;
+  mediaTried.add(k);
   try {
-    if(await archive.voiceOf(inc.peerId, inc.mid)) return;
-    const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
-    if(!blob || blob.size > VOICE_MAX_BYTES) return;
-    await archive.captureVoice(inc, {mime: doc.mime_type || blob.type || 'audio/ogg', dur: Number(doc.duration) || 0, b64: await toB64(blob)});
-  } catch{ voiceTried.delete(k); /* keyingi safar qayta uriniladi */ }
+    if(isVoice) {
+      if(await archive.voiceOf(inc.peerId, inc.mid)) return;
+      const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
+      if(!blob || blob.size > VOICE_MAX_BYTES) return;
+      await archive.captureVoice(inc, {mime: doc.mime_type || blob.type || 'audio/ogg', dur: Number(doc.duration) || 0, b64: await toB64(blob)});
+    } else if(isRound) {
+      if(await archive.mediaOf(inc.peerId, inc.mid)) return;
+      const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
+      if(blob) await archive.captureMedia(inc, 'round', doc.mime_type || blob.type || 'video/mp4', Number(doc.duration) || 0, await toBytes(blob));
+    } else {
+      if(await archive.mediaOf(inc.peerId, inc.mid)) return;
+      const size = choosePhotoSize(photo, 1280, 1280);                  // 1280 px gacha (sifatli, lekin og'ir emas)
+      const blob: Blob = await (appDownloadManager as any).downloadMedia({media: photo, thumb: size});
+      if(blob) await archive.captureMedia(inc, 'photo', blob.type || 'image/jpeg', 0, await toBytes(blob));
+    }
+  } catch{ mediaTried.delete(k); /* keyingi safar qayta uriniladi */ }
 }
 
 async function capture(m: any) {
   const inc = toIncoming(m);
-  if(inc && (inc.text || inc.kind)) await archive.capture(inc).catch(() => undefined);
-  if(inc && isEnabled()) captureVoice(m, inc);
+  if(!inc || !chatEnabled(inc.peerId)) return;
+  if(inc.text || inc.kind) await archive.capture(inc).catch(() => undefined);
+  if(isEnabled()) captureMedia(m, inc);
 }
 
 async function makeSync(code: string) {
   const url = serverUrl();
   if(!url) throw new Error('no_server');
-  return new Sync({baseUrl: url, keys: await deriveKeys(code), store});
+  return new Sync({baseUrl: url, keys: await deriveKeys(code), store, mediaAllowed: () => paid});
 }
 
 export async function flushNow(): Promise<number> {
@@ -134,7 +171,8 @@ export function startTozaBackup() {
   // Sharpa «Zaxirani yoqish» bosilganda (?zaxira=1): kirgandan keyin zaxira oynasini o'zi ochamiz
   if(!isEnabled() && /[?&]zaxira=1/.test(location.search)) setTimeout(() => { import('./ui').then((m) => m.openTozaBackup()); }, 1200);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) { lastStatus = ''; reportStatus(true); } });
-  if(isEnabled()) makeSync(savedCode()).then((s) => { sync = s; }).catch(() => undefined);
+  if(isEnabled()) makeSync(savedCode()).then((s) => { sync = s; return refreshPaid(); }).catch(() => undefined);
+  window.setInterval(() => { if(isEnabled()) refreshPaid(); }, 10 * 60 * 1000);
   timer = window.setInterval(() => { if(isEnabled()) flushNow().catch(() => undefined); }, FLUSH_MS);
   document.addEventListener('visibilitychange', () => { if(document.hidden && isEnabled()) flushNow().catch(() => undefined); });
 }
@@ -150,6 +188,7 @@ export async function enableBackup(code: string): Promise<'created' | 'exists'> 
   sync = s;
   startTozaBackup();
   reportStatus(true);
+  refreshPaid();
   return res;
 }
 
@@ -184,12 +223,27 @@ export async function serverStatus(): Promise<SyncStatus | null> {
 export async function linkSharpa(code: string) {
   if(!sync) throw new Error('off');
   await sync.link(code.trim().toUpperCase());
+  await refreshPaid();
+}
+
+/** Har bir chat qancha joy egallaydi (brauzerning o'zida hisoblanadi: server shifrlangan ichini ko'rmaydi). */
+export async function chatUsage(): Promise<{peerId: string; msgs: number; files: number; bytes: number; on: boolean}[]> {
+  const by = new Map<string, {peerId: string; msgs: number; files: number; bytes: number; on: boolean}>();
+  for(const m of await store.all()) {
+    const e = by.get(m.peerId) || {peerId: m.peerId, msgs: 0, files: 0, bytes: 0, on: chatEnabled(m.peerId)};
+    if(isBlobKey(m.k)) {
+      e.bytes += Math.floor(((m.voice?.b64.length || 0) + (m.media?.b64.length || 0)) * 3 / 4);
+      if(m.voice || m.media?.i === 0) e.files++;
+    } else { e.bytes += JSON.stringify(m).length; e.msgs++; }
+    by.set(m.peerId, e);
+  }
+  return [...by.values()].sort((a, b) => b.bytes - a.bytes);
 }
 
 export async function counts() {
   const all = await store.all();
-  const msgs = all.filter((m) => !isVoiceKey(m.k));
-  return {total: msgs.length, voices: all.length - msgs.length, deleted: msgs.filter((m) => m.deleted).length, pending: (await store.dirty(100000)).length};
+  const msgs = all.filter((m) => !isBlobKey(m.k));
+  return {total: msgs.length, voices: all.filter((m) => m.k.startsWith('v:')).length, files: all.filter((m) => m.k.startsWith('m:') && m.media?.i === 0).length, deleted: msgs.filter((m) => m.deleted).length, pending: (await store.dirty(100000)).length};
 }
 
 export async function peerTitle(peerId: string): Promise<string> {

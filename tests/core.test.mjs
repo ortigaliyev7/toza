@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  Archive, MemoryStore, VOICE_MAX_BYTES, voiceKey, isVoiceKey, Sync, TozaApiError, decryptChunk, deriveKeys, encryptChunk, formatCode, generateRecoveryCode, keyOf, mergeMessage, normalizeCode, restoreInto
+  Archive, MemoryStore, VOICE_MAX_BYTES, voiceKey, isVoiceKey, mediaKey, isBlobKey, MEDIA_PART_BYTES, MEDIA_MAX_BYTES, Sync, TozaApiError, decryptChunk, deriveKeys, encryptChunk, formatCode, generateRecoveryCode, keyOf, mergeMessage, normalizeCode, restoreInto
 } from '../overlay/src/lib/toza/core.ts';
 
 const te = new TextEncoder();
 const td = new TextDecoder();
 
 /** Serverning /tb/* xatti-harakatini (tbackup.py) taqlid qiluvchi xotiradagi soxta server. */
-function fakeServer({quota = 25 * 1024 * 1024} = {}) {
+function fakeServer({quota = 25 * 1024 * 1024, paid = true} = {}) {
   const meta = new Map(); // id -> verifier
   const chunks = new Map(); // id -> Map(seq -> Uint8Array)
   const seen = []; // serverga tushgan hamma baytlar (ochiq matn yo'qligini tekshirish uchun)
@@ -31,6 +31,7 @@ function fakeServer({quota = 25 * 1024 * 1024} = {}) {
     const m = u.pathname.match(/^\/tb\/chunk\/(\d+)$/);
     if(m && init.method === 'PUT') {
       const body = new Uint8Array(await new Response(init.body).arrayBuffer());
+      if(h['X-TB-Kind'] === 'media' && !paid) return json({error: 'paid_only'}, 402);
       seen.push(body);
       const used = [...store.entries()].filter(([s]) => s !== +m[1]).reduce((a, [, v]) => a + v.length, 0);
       if(used + body.length > quota) return json({error: 'quota'}, 507);
@@ -192,4 +193,49 @@ test('ovozli xabar: shifrlangan zaxiraga chiqadi va yangi qurilmada tiklanadi; o
   const res = await restoreInto(new Sync({baseUrl: 'https://srv.test', keys: await deriveKeys(code), store: storeB, fetch: srv.fetch}), arcB);
   assert.equal(res.deleted, 1);
   assert.equal((await arcB.voiceOf(1, 3)).b64, b64);
+});
+
+test('rasm/dumaloq video: bo\'laklarga bo\'linadi, bir marta saqlanadi, yig\'iladi; katta fayl rad etiladi', async () => {
+  const arc = new Archive(new MemoryStore());
+  const bytes = new Uint8Array(2_000_000).map((_, i) => (i * 7) % 256);
+  assert.equal(await arc.captureMedia({peerId: 3, mid: 4, date: 1}, 'photo', 'image/jpeg', 0, bytes), true);
+  assert.equal(await arc.captureMedia({peerId: 3, mid: 4, date: 1}, 'photo', 'image/jpeg', 0, bytes), false);
+  const got = await arc.mediaOf(3, 4);
+  assert.equal(got.b64.length, Math.ceil(2_000_000 / MEDIA_PART_BYTES));
+  assert.deepEqual(new Uint8Array(Buffer.from(got.b64.join(''), 'base64').subarray(0, 0)), new Uint8Array(0));
+  const joined = Buffer.concat(got.b64.map((x) => Buffer.from(x, 'base64')));
+  assert.equal(joined.length, 2_000_000); assert.ok(joined.equals(Buffer.from(bytes)));
+  assert.equal(await arc.captureMedia({peerId: 3, mid: 5, date: 1}, 'photo', 'image/jpeg', 0, new Uint8Array(MEDIA_MAX_BYTES.photo + 1)), false);
+  assert.equal(await arc.mediaOf(3, 99), undefined);
+  assert.ok(isBlobKey(mediaKey(3, 4, 0)) && !isBlobKey('3:4'));
+  await arc.capture({peerId: 3, mid: 4, date: 1, text: 'sarlavha', kind: 'messageMediaPhoto'});
+  await arc.deleted(3, [4]);
+  assert.equal((await arc.deletedMessages()).length, 1);          // faqat xabar yozuvi, bo'laklar emas
+});
+
+test('zaxira: bepul akkauntda fayllar yuborilmaydi (matn ketadi); obunada rasm shifrlanib ketadi va tiklanadi', async () => {
+  const code = generateRecoveryCode(), keys = await deriveKeys(code);
+  const bytes = new Uint8Array(1_500_000).map((_, i) => (i * 13) % 256);
+  const make = async (paid) => {
+    const srv = fakeServer({paid}), store = new MemoryStore(), arc = new Archive(store);
+    await arc.capture({peerId: 7, mid: 1, date: 1, text: 'salom', kind: undefined});
+    await arc.captureMedia({peerId: 7, mid: 1, date: 1}, 'photo', 'image/jpeg', 0, bytes);
+    const sync = new Sync({baseUrl: 'https://srv.test', keys, store, fetch: srv.fetch});
+    await sync.init();
+    return {srv, store, arc, sync};
+  };
+  const free = await make(false);
+  await free.sync.flush();                                         // 402 qabul qilinadi, matn yuboriladi, qayta-qayta urinmaydi
+  assert.equal(free.sync.mediaBlocked, true);
+  assert.equal((await free.store.dirty(100)).filter((m) => isBlobKey(m.k)).length, 3);   // fayl bo'laklari yuborilmadi
+  assert.equal((await free.store.dirty(100)).filter((m) => !isBlobKey(m.k)).length, 0);  // matn ketdi
+  assert.equal(await free.sync.flush(), 0);                         // aylanib qolmaydi
+  const paid = await make(true);
+  await paid.sync.flush();
+  assert.equal((await paid.store.dirty(100)).length, 0);
+  const B = new Archive(new MemoryStore());
+  await restoreInto(new Sync({baseUrl: 'https://srv.test', keys: await deriveKeys(code), store: B.store, fetch: paid.srv.fetch}), B);
+  const got = await B.mediaOf(7, 1);
+  assert.ok(Buffer.concat(got.b64.map((x) => Buffer.from(x, 'base64'))).equals(Buffer.from(bytes)));
+  for(const body of paid.srv.seen) assert.ok(body.length < 1_600_000);   // bitta bo'lak 4 MB dan oshmaydi
 });
