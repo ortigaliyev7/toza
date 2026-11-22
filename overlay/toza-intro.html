@@ -8,25 +8,23 @@
 #toza-intro li{position:relative;padding:8px 0 8px 30px;border-top:1px solid #e8eef5}
 #toza-intro li:before{content:"";position:absolute;left:4px;top:13px;width:14px;height:8px;border-left:3px solid #2aa05a;border-bottom:3px solid #2aa05a;transform:rotate(-45deg)}
 #toza-intro .tz-warn{margin:0 0 18px;padding:10px 12px;border-radius:12px;background:#fff6e0;color:#6b4a00;font-size:14px;text-align:start}
-#toza-intro .tz-src,#toza-retry a{display:block;margin-top:12px;color:#2b6fdb;font-size:14px}
 #toza-intro button,#toza-retry button{width:100%;border:0;border-radius:14px;padding:15px;font:600 17px system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#1fa7e0,#2b6fdb);cursor:pointer}
 @media (prefers-color-scheme:dark){#toza-intro,#toza-retry{background:#0e1621;color:#e9eef5}#toza-intro .tz-card,#toza-retry .tz-card{background:#17212b;box-shadow:none}#toza-intro .tz-sub{color:#9fb0c3}#toza-intro li{border-color:#243241}#toza-intro .tz-warn{background:#3a2f12;color:#f3d58a}}
 </style>
 <div id="toza-intro"><div class="tz-card">
   <svg width="84" height="84" viewBox="0 0 160 160" aria-hidden="true"><defs><linearGradient id="tzg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1fa7e0"/><stop offset="1" stop-color="#2b6fdb"/></linearGradient></defs><circle cx="80" cy="80" r="80" fill="url(#tzg)"/><path d="M42 46H118V62H89V116H71V62H42Z" fill="#fff"/></svg>
   <h1>Toza</h1><p class="tz-sub" data-k="sub"></p>
-  <ul><li data-k="b1"></li><li data-k="b2"></li><li data-k="b3"></li><li data-k="b4"></li></ul>
+  <ul><li data-k="b1"></li><li data-k="b2"></li><li data-k="b3"></li></ul>
   <div class="tz-warn" data-k="warn"></div>
   <button type="button" id="toza-go" data-k="go"></button>
-  <a class="tz-src" href="https://github.com/ortigaliyev7/toza" target="_blank" rel="noopener" data-k="src"></a>
 </div></div>
 <div id="toza-retry"><div class="tz-card"><p data-k="rt"></p><button type="button" id="toza-reload" data-k="rl"></button></div></div>
 <script>
 (function () {
   var D = {
-    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", b4: "Dastur kodi ochiq: istalgan odam tekshira oladi.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", src: "Ochiq kodni ko'rish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash"},
-    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", b4: "Исходный код открыт: любой может проверить.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", src: "Открытый исходный код", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить"},
-    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", b4: "The source code is open for anyone to check.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", src: "View the open source code", rt: "The page did not load completely (the connection may be slow).", rl: "Reload"}
+    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash"},
+    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить"},
+    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", rt: "The page did not load completely (the connection may be slow).", rl: "Reload"}
   };
   var lang = String(navigator.language || 'uz').slice(0, 2);
   var T = D[lang] || D.uz;
@@ -34,7 +32,9 @@
   [intro, retry].forEach(function (box) { Array.prototype.forEach.call(box.querySelectorAll('[data-k]'), function (el) { el.textContent = T[el.getAttribute('data-k')]; }); });
   var KEY = 'toza_intro_ok', seen = false;
   try { seen = localStorage.getItem(KEY) === '1'; } catch (e) { /* xotira yopiq */ }
-  if (seen) intro.parentNode.removeChild(intro); else intro.style.display = 'flex';
+  // Sharpa ichida (iframe) ochilganda tushuntirish ko'rsatilmaydi: foydalanuvchi Sharpa'dan o'zi kelgan, kirish darrov boshlanadi.
+  var embedded = false; try { embedded = window.parent !== window; } catch (e) { embedded = true; }
+  if (seen || embedded) intro.parentNode.removeChild(intro); else intro.style.display = 'flex';
   var go = document.getElementById('toza-go');
   if (go) go.onclick = function () { try { localStorage.setItem(KEY, '1'); } catch (e) { /* xotira yopiq */ } if (intro.parentNode) intro.parentNode.removeChild(intro); };
   document.getElementById('toza-reload').onclick = function () { location.reload(); };

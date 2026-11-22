@@ -6,7 +6,7 @@ Asos: [morethanwords/tweb](https://github.com/morethanwords/tweb) (Telegram Web 
 Web K to'liq ko'chirilmaydi: `build.sh` uni aniq versiyada (`TWEB_REF`) yuklaydi, `overlay/` dagi o'zgartirishlarimizni qo'yadi, nomini «Toza» ga almashtiradi va yig'adi.
 
 ## Ko'rinish va ishonch
-`brand.mjs` (build vaqtida): Telegram logotipi o'rniga Toza belgisi, «Sign in with Toza», birinchi kirishdan oldin tushuntirish sahifasi (`overlay/toza-intro.html`: nima ulanadi, ma'lumot qayerga ketadi, ochiq kod, ogohlantirish) va asosiy CSS yuklanmasa «Qayta yuklash» oynasi (uslubsiz sahifa o'rniga).
+`brand.mjs` (build vaqtida): Telegram logotipi o'rniga Toza belgisi, «Sign in with Toza», birinchi kirishdan oldin qisqa tushuntirish (`overlay/toza-intro.html`: nima ulanadi, ma'lumot qayerga ketadi, ogohlantirish; Sharpa ichida ochilganda ko'rsatilmaydi, kirish darrov boshlanadi) va asosiy CSS yuklanmasa «Qayta yuklash» oynasi (uslubsiz sahifa o'rniga).
 
 ## Toza zaxirasi (o'chirilgan xabarlarni saqlash va tiklash)
 Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arxivga (IndexedDB) yozadi: yangi, tahrirlangan va o'chirilganlarini. Arxiv **shifrlanib** Sharpa serveriga yuklanadi (nol bilim: shifrlash kaliti serverga berilmaydi). Yangi qurilmada tiklash kodi bilan arxiv tiklanadi.
