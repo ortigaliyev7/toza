@@ -1,6 +1,6 @@
 import {alertsOn, setAlertsOn} from './alerts';
 import {fmtDuration} from './alerts';
-import {archive, chatEnabled, gaps, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
+import {archive, chatEnabled, gaps, purgeChat, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
   bad_code: 'Kod noto\'g\'ri yozilgan. 26 belgi bo\'lishi kerak (harf va 2–7 raqamlari).',
