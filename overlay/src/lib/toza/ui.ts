@@ -70,10 +70,13 @@ export function openTozaBackup() {
   function viewNew() {
     const code = generateRecoveryCode();
     const msg = h('div');
-    const ack = h('input', {type: 'checkbox'}) as HTMLInputElement;
+    // tweb'ning umumiy uslubi oddiy checkbox'ni ko'rinmas qiladi: o'z belgi katakchamizni chizamiz
+    let acked = false;
+    const boxEl = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+    const setAck = (v: boolean) => { acked = v; msg.replaceChildren(); boxEl.textContent = v ? '✓' : ''; boxEl.style.background = v ? 'var(--primary-color,#3390ec)' : 'transparent'; };
     const go = btn('Davom etish', async() => {
       msg.replaceChildren();
-      if(!ack.checked) { msg.append(note('Avval kodni yozib olganingizni tasdiqlang.', '#d33')); return; }
+      if(!acked) { msg.append(note('Avval kodni yozib olganingizni tasdiqlang.', '#d33')); return; }
       try { await enableBackup(code); viewOn(); } catch(e) { msg.append(note(errText(e), '#d33')); }
     });
     show(
@@ -84,7 +87,7 @@ export function openTozaBackup() {
         btn('Nusxalash', async(b) => { await navigator.clipboard?.writeText(code); b.textContent = 'Nusxalandi'; setTimeout(() => (b.textContent = 'Nusxalash'), 1500); }, true),
         btn('Faylga saqlash', () => { const a = h('a', {href: URL.createObjectURL(new Blob([`Toza tiklash kodi: ${code}\n`], {type: 'text/plain'})), download: 'toza-tiklash-kodi.txt'}); a.click(); }, true)
       ),
-      h('label', {style: 'display:flex;gap:8px;align-items:flex-start;margin:10px 0;cursor:pointer;'}, ack, 'Kodni yozib oldim. Yo\'qotsam, zaxirani tiklab bo\'lmasligini tushundim.'),
+      Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:flex-start;margin:12px 0;cursor:pointer;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);user-select:none;'}, boxEl, 'Kodni yozib oldim. Yo\'qotsam, zaxirani tiklab bo\'lmasligini tushundim.'), {role: 'checkbox', tabIndex: 0, onclick: () => setAck(!acked), onkeydown: (e: KeyboardEvent) => { if(e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setAck(!acked); } }}),
       row(go, btn('Orqaga', () => viewOff(), true)),
       msg
     );
