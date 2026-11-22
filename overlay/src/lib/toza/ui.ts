@@ -1,4 +1,6 @@
 import {alertsOn, setAlertsOn} from './alerts';
+import {viewExport, viewLock, viewSearch, viewStats, viewTemplates} from './tools';
+import type {Ctx} from './tools';
 import {fmtDuration} from './alerts';
 import {archive, chatEnabled, gaps, purgeChat, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
@@ -27,7 +29,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
 const BTN = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--primary-color,#3390ec);color:#fff;';
 const BTN2 = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:rgba(127,127,127,.18);color:inherit;';
 
-export function openTozaBackup() {
+export function openTozaBackup(jump?: {peerId: string}) {
   startTozaBackup();
   const back = h('div', {style: 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px;'});
   const panel = h('div', {style: 'background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border-radius:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px;line-height:1.4;'});
@@ -46,6 +48,12 @@ export function openTozaBackup() {
   };
   const show = (...nodes: Node[]) => { panel.replaceChildren(...nodes); };
 
+  const ctx: Ctx = {h, title, note, row, btn, show, back: () => (isEnabled() ? viewOn() : viewOff()), BTN2};
+  // Qo'shimcha imkoniyatlar (hammasi brauzer ichida): qidiruv, statistika, eksport, shablonlar, qulf
+  const toolsRow = () => row(
+    btn('Qidiruv', () => viewSearch(ctx), true), btn('Statistika', () => viewStats(ctx), true), btn('Eksport', () => viewExport(ctx), true),
+    btn('Shablonlar', () => viewTemplates(ctx), true), btn('Qulf (PIN)', () => viewLock(ctx), true));
+
   async function viewOff() {
     const msg = h('div');
     const codeIn = h('input', {placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX', style: 'width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;font:inherit;letter-spacing:1px;'}) as HTMLInputElement;
@@ -53,6 +61,8 @@ export function openTozaBackup() {
       title('Toza zaxirasi'),
       note('O\'chirilgan va tahrirlangan xabarlarni saqlaydi. Xabarlar brauzeringizda shifrlanadi, server ularni o\'qiy olmaydi. Telegram akkauntingiz o\'chsa ham zaxira saqlanadi.'),
       row(btn('Yangi zaxira yaratish', () => viewNew())),
+      h('b', {}, 'Imkoniyatlar'),
+      toolsRow(),
       h('hr', {style: 'border:0;border-top:1px solid rgba(127,127,127,.3);margin:14px 0'}),
       h('b', {}, 'Mavjud zaxirani tiklash'),
       note('Yangi qurilmada: avval yaratilgan tiklash kodini kiriting.'),
@@ -136,6 +146,8 @@ export function openTozaBackup() {
         btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true),
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
+      h('b', {}, 'Imkoniyatlar'),
+      toolsRow(),
       alertRow(),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
       note('Matn bepul saqlanadi. Rasm, video va ovozli xabar faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
@@ -199,7 +211,8 @@ export function openTozaBackup() {
     }
   }
 
-  (isEnabled() ? viewOn : viewOff)();
+  if(jump) viewSearch(ctx, jump.peerId, true);
+  else (isEnabled() ? viewOn : viewOff)();
 }
 
 export {normalizeCode, serverUrl};

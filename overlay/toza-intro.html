@@ -21,9 +21,9 @@
 <script>
 (function () {
   var D = {
-    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash", inst: "Toza'ni ilova qilib o'rnatish", ios: "Ilova qilish: Ulashish → «Bosh ekranga qo'shish»"},
-    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить", inst: "Установить Toza как приложение", ios: "Как приложение: Поделиться → «На экран Домой»"},
-    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", rt: "The page did not load completely (the connection may be slow).", rl: "Reload", inst: "Install Toza as an app", ios: "Make it an app: Share → «Add to Home Screen»"}
+    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash", inst: "Toza'ni ilova qilib o'rnatish", ios: "Ilova qilish: Ulashish → «Bosh ekranga qo'shish»", lkt: "Toza qulfi", lkp: "PIN kod", lkg: "Ochish", lkb: "PIN noto'g'ri", lkw: "Ko'p urinish. Biroz kuting."},
+    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить", inst: "Установить Toza как приложение", ios: "Как приложение: Поделиться → «На экран Домой»", lkt: "Блокировка Toza", lkp: "PIN-код", lkg: "Открыть", lkb: "Неверный PIN", lkw: "Слишком много попыток. Подождите."},
+    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", rt: "The page did not load completely (the connection may be slow).", rl: "Reload", inst: "Install Toza as an app", ios: "Make it an app: Share → «Add to Home Screen»", lkt: "Toza lock", lkp: "PIN code", lkg: "Unlock", lkb: "Wrong PIN", lkw: "Too many attempts. Please wait."}
   };
   var lang = String(navigator.language || 'uz').slice(0, 2);
   var T = D[lang] || D.uz;
@@ -76,5 +76,63 @@
     var ios = /iPhone|iPad|iPod/.test(navigator.userAgent), tipSeen = false; try { tipSeen = localStorage.getItem('toza_ios_tip') === '1'; } catch (e) { tipSeen = true; }
     if (ios && !tipSeen) { pill.textContent = T.ios; pill.style.display = 'block'; pill.onclick = function () { try { localStorage.setItem('toza_ios_tip', '1'); } catch (e) { /* ... */ } pill.style.display = 'none'; }; }
   }
+
+  // ---- Toza qulfi (PIN): ochilganda va uzoq fonda turgandan keyin PIN so'raydi. Telegram sessiyasi/xabarlar shifrlanmaydi: bu — ko'z o'ngidagi to'siq.
+  var LK = 'toza_lock', LKM = 'toza_lock_min', LKU = 'toza_unlocked', enc = new TextEncoder();
+  function b64(buf) { var a = new Uint8Array(buf), s2 = ''; for (var i = 0; i < a.length; i++) s2 += String.fromCharCode(a[i]); return btoa(s2); }
+  function unb64(x) { var s2 = atob(x), a = new Uint8Array(s2.length); for (var i = 0; i < s2.length; i++) a[i] = s2.charCodeAt(i); return a; }
+  function derive(pin, salt, iter) {
+    return crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveBits']).then(function (k) {
+      return crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: salt, iterations: iter}, k, 256);
+    });
+  }
+  function cfg() { try { var c = JSON.parse(localStorage.getItem(LK) || 'null'); return c && c.hash ? c : null; } catch (e) { return null; } }
+  var fails = 0, until = 0;
+  var lock = window.__tozaLock = {
+    has: function () { return !!cfg(); },
+    minutes: function () { var m = Number(localStorage.getItem(LKM)); return m >= 0 && m <= 1440 ? m : 5; },
+    setMinutes: function (m) { try { localStorage.setItem(LKM, String(Math.max(0, Math.min(1440, Number(m) || 0)))); } catch (e) { /* ... */ } },
+    set: function (pin) {
+      if (typeof pin !== 'string' || pin.length < 4 || pin.length > 12) return Promise.reject(new Error('pin_len'));
+      var salt = crypto.getRandomValues(new Uint8Array(16)), iter = 150000;
+      return derive(pin, salt, iter).then(function (h) { localStorage.setItem(LK, JSON.stringify({v: 1, iter: iter, salt: b64(salt), hash: b64(h)})); try { sessionStorage.setItem(LKU, '1'); } catch (e) { /* ... */ } return true; });
+    },
+    verify: function (pin) {
+      var c = cfg(); if (!c) return Promise.resolve(true);
+      if (Date.now() < until) return Promise.resolve(false);
+      return derive(String(pin), unb64(c.salt), c.iter).then(function (h) {
+        var ok = b64(h) === c.hash;
+        if (ok) { fails = 0; } else if (++fails >= 5) { until = Date.now() + 30000; fails = 0; }
+        return ok;
+      });
+    },
+    clear: function (pin) { return lock.verify(pin).then(function (ok) { if (ok) { try { localStorage.removeItem(LK); sessionStorage.removeItem(LKU); } catch (e) { /* ... */ } } return ok; }); },
+    lockNow: function () { try { sessionStorage.removeItem(LKU); } catch (e) { /* ... */ } showLock(); }
+  };
+  function unlocked() { try { return sessionStorage.getItem(LKU) === '1'; } catch (e) { return false; } }
+  function showLock() {
+    if (!lock.has() || document.getElementById('toza-lock')) return;
+    var box = document.createElement('div'); box.id = 'toza-lock';
+    box.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;background:#f2f6fb;color:#16202e;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+    box.innerHTML = '<div style="width:100%;max-width:320px;background:#fff;border-radius:22px;padding:24px 20px;box-shadow:0 12px 40px rgba(30,60,110,.18);text-align:center"><div style="font-weight:700;font-size:20px;margin-bottom:14px"></div><input type="password" inputmode="numeric" autocomplete="off" maxlength="12" style="width:100%;box-sizing:border-box;padding:13px;border:1px solid #c9d6e6;border-radius:12px;font-size:20px;text-align:center;letter-spacing:6px"><div style="color:#d33;min-height:22px;margin:8px 0;font-size:14px"></div><button style="width:100%;border:0;border-radius:14px;padding:14px;font:600 16px system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#0ea5ff,#1d5fd6);cursor:pointer"></button></div>';
+    var parts = box.firstChild.children; parts[0].textContent = T.lkt; parts[1].placeholder = T.lkp; parts[3].textContent = T.lkg;
+    var input = parts[1], err = parts[2];
+    function go() {
+      lock.verify(input.value).then(function (ok) {
+        if (ok) { try { sessionStorage.setItem(LKU, '1'); } catch (e) { /* ... */ } box.remove(); }
+        else { err.textContent = Date.now() < until ? T.lkw : T.lkb; input.value = ''; input.focus(); }
+      });
+    }
+    parts[3].onclick = go; input.onkeydown = function (e) { if (e.key === 'Enter') go(); };
+    document.body.appendChild(box); setTimeout(function () { input.focus(); }, 50);
+  }
+  if (lock.has() && !unlocked()) showLock();
+  var hiddenAt = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    var m = lock.minutes();
+    if (lock.has() && hiddenAt && Date.now() - hiddenAt >= m * 60000) lock.lockNow();
+    hiddenAt = 0;
+  });
 }());
 </script>

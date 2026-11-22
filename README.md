@@ -33,3 +33,14 @@ Toza Sharpa Mini App ichida to'liq ekranli iframe sifatida ochiladi (kirish ham 
 
 ## Qoidalar (Telegram API shartlari)
 Ommaviy xabar/spam yo'q, foydalanuvchi sessiyasi serverga yuborilmaydi, «Telegram» nomi va belgisi ilova nomi/belgisida ishlatilmaydi (o'z logotipimiz kerak).
+
+## Qo'shimcha imkoniyatlar (Toza zaxira oynasida)
+Hammasi **brauzer ichida** ishlaydi, xabar matni serverga yuborilmaydi (zaxira nol bilim bo'lib qoladi):
+- **Qidiruv**: saqlangan matn va tahrir tarixidan; chat, «faqat o'chirilgan» filtri (`tools-core.ts → searchArchive`).
+- **Statistika**: jami, chat bo'yicha joy, oxirgi 30 kun, eng faol soat (`computeStats`).
+- **Eksport**: chatni `.txt` yoki to'liq `.html` (rasm/ovoz/video ichiga joylangan; matn HTML-xavfsiz).
+- **Shablonlar**: tezkor javoblar (localStorage), yozish maydoniga qo'yish; rejalashtirib yuborish — Telegram'ning o'z imkoniyati.
+- **Qulf (PIN)**: `toza-intro.html` ichida (PBKDF2-SHA256 150 000 aylanish); Toza ochilganda va fonda turgach so'raydi. Xabarlarni shifrlamaydi.
+- **Ochiq chatda «O'chirilgan: N»** belgisi: bosilsa shu chatning o'chirilganlari ochiladi.
+
+Qoidalar: tweb GPL-3.0 (kod ochiq qoladi), Telegram brendi/logotipidan foydalanilmaydi, spam/avtomatlashtirilgan suiiste'mol yo'q, tweb pin qilingan commit'da, o'zgartirishlar kichik (`overlay/` + `patches/`). Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.

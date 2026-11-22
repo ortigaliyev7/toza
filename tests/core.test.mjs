@@ -276,3 +276,55 @@ test('chatni zaxiradan olib tashlash: mahalliy nusxa o\'chadi, server qolgan cha
   assert.equal(await B.voiceOf(1, 1), undefined); assert.equal(await B.mediaOf(1, 2), undefined);
   assert.ok(MEDIA_MAX_BYTES.video > MEDIA_MAX_BYTES.round);
 });
+
+import {searchArchive, computeStats, exportText, exportHtml, escHtml, newTemplate} from '../overlay/src/lib/toza/tools-core.ts';
+async function seed() {
+  const arc = new Archive(new MemoryStore());
+  const t0 = 1_700_000_000;
+  await arc.capture({peerId: 1, mid: 1, date: t0, text: 'Salom Ali, narx qancha?', out: true});
+  await arc.capture({peerId: 1, mid: 2, date: t0 + 60, text: 'Narx 100 ming', out: false});
+  await arc.capture({peerId: 1, mid: 2, date: t0 + 60, text: 'Narx 120 ming', out: false});     // tahrir
+  await arc.capture({peerId: 2, mid: 1, date: t0 + 3600 * 24, text: 'boshqa chat <b>xavfli</b>', out: false});
+  await arc.deleted(1, [1]);
+  await arc.capture({peerId: 1, mid: 3, date: t0 + 120, text: '', kind: 'messageMediaDocument', out: false});
+  await arc.captureVoice({peerId: 1, mid: 3, date: t0 + 120}, {mime: 'audio/ogg', dur: 3, b64: Buffer.from(new Uint8Array(300)).toString('base64')});
+  return {arc, all: await arc.store.all(), t0};
+}
+test('qidiruv: matn va tahrir tarixidan, chat/o\'chirilgan/sana filtri, kichik-katta harf farqsiz', async () => {
+  const {all, t0} = await seed();
+  assert.equal(searchArchive(all, 'narx').length, 2);                      // 1:1 va 1:2 (matn va eski tahrir)
+  assert.equal(searchArchive(all, '100 MING').length, 1);                 // eski (tahrirlangan) matndan topiladi
+  assert.deepEqual(searchArchive(all, '', {deletedOnly: true}).map((m) => m.k), ['1:1']);
+  assert.equal(searchArchive(all, '', {peerId: '2'}).length, 1);
+  assert.equal(searchArchive(all, '', {from: t0 + 100}).length, 2);       // ovozli xabar (t0+120) va ikkinchi chat
+  assert.equal(searchArchive(all, '', {limit: 1}).length, 1);
+  assert.ok(searchArchive(all, '').every((m) => !m.k.startsWith('v:')));  // ovoz yozuvlari ro'yxatga kirmaydi
+});
+test('statistika: jami, o\'chirilgan/tahrirlangan, chat bo\'yicha hajm, kunlar va soatlar', async () => {
+  const {all, t0} = await seed();
+  const st = computeStats(all, t0 + 3600 * 24 + 10);
+  assert.equal(st.messages, 4); assert.equal(st.deleted, 1); assert.equal(st.edited, 1); assert.equal(st.voices, 1);
+  const c1 = st.byChat.find((c) => c.peerId === '1');
+  assert.equal(c1.msgs, 3); assert.equal(c1.mine, 1); assert.equal(c1.theirs, 2); assert.equal(c1.files, 1); assert.ok(c1.bytes > 300);
+  assert.equal(st.byDay.length, 30); assert.equal(st.byDay.reduce((a, d) => a + d.n, 0), 4);
+  assert.equal(st.byHour.reduce((a, n) => a + n, 0), 4);
+  assert.equal(st.byChat[0].peerId, '1');                                   // eng ko'p joy egallagan birinchi
+});
+test('eksport: matnli (.txt) va to\'liq (.html, ovoz ichiga joylangan, matn xavfsiz)', async () => {
+  const {all} = await seed();
+  const txt = exportText(all, '1', 'Ali');
+  assert.ok(txt.includes('Siz: Salom Ali') && txt.includes('(o\'chirilgan') && txt.includes('oldingi') && !txt.includes('boshqa chat'));
+  const voice = await new Archive(new MemoryStore()).store.all();
+  const {html, skipped} = exportHtml(all, '1', 'Ali', (mid) => mid === 3 ? {kind: 'voice', mime: 'audio/ogg', b64: ['AAAA']} : undefined);
+  assert.equal(skipped, 0); assert.ok(html.includes('<audio controls src="data:audio/ogg;base64,AAAA"'));
+  const h2 = exportHtml(all, '2', '<script>x</script>', () => undefined).html;
+  assert.ok(!h2.includes('<b>xavfli</b>') && h2.includes('&lt;b&gt;xavfli&lt;/b&gt;') && !h2.includes('<script>x'));   // XSS yo'q
+  const big = exportHtml(all, '1', 'Ali', () => ({kind: 'photo', mime: 'image/jpeg', b64: ['A'.repeat(400)]}), {maxMediaBytes: 100});
+  assert.ok(big.skipped >= 1 && big.html.includes('qo\'shilmadi'));
+  assert.equal(escHtml('a&b"<'), 'a&amp;b&quot;&lt;'); void voice;
+});
+test('shablon: sarlavha, uzunlik cheklovi', () => {
+  const t = newTemplate('', '  Rahmat, tez orada javob beraman  ', 'x1');
+  assert.deepEqual(t, {id: 'x1', title: 'Rahmat, tez orada javob berama', text: 'Rahmat, tez orada javob beraman'});
+  assert.equal(newTemplate('a'.repeat(100), 'b'.repeat(5000)).text.length, 2000);
+});

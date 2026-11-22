@@ -163,6 +163,7 @@ async function onDeleted(peerId: string, mids: Iterable<number>) {
     }
   }
   await archive.deleted(peerId, list);
+  updateBadge();
 }
 
 async function makeSync(code: string) {
@@ -184,6 +185,23 @@ export async function flushNow(): Promise<number> {
   }
 }
 
+// ---- Ochiq chatdagi o'chirilgan xabarlar belgisi: bosilsa shu chatning o'chirilganlari ro'yxati ochiladi
+let currentPeer = '';
+let badgeEl: HTMLElement | null = null;
+async function updateBadge() {
+  try {
+    const n = isEnabled() && currentPeer && chatEnabled(currentPeer) ? (await store.all()).filter((m) => m.peerId === currentPeer && m.deleted && !isBlobKey(m.k)).length : 0;
+    if(!n) { badgeEl?.remove(); badgeEl = null; return; }
+    if(!badgeEl) {
+      badgeEl = document.createElement('button');
+      badgeEl.setAttribute('style', 'position:fixed;top:66px;right:12px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:#e8860c;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
+      badgeEl.onclick = () => { const p = currentPeer; import('./ui').then((m) => m.openTozaBackup({peerId: p})); };
+      document.body.append(badgeEl);
+    }
+    badgeEl.textContent = `O'chirilgan: ${n}`;
+  } catch{ /* belgi muhim emas */ }
+}
+
 function observeBubbles() {
   const seen = new Set<string>();
   let queue: {peerId: any; mid: number}[] = [];
@@ -192,7 +210,9 @@ function observeBubbles() {
     const list = queue.splice(0, queue.length);
     for(const {peerId, mid} of list) {
       try { await capture(await (rootScope as any).managers.appMessagesManager.getMessageByPeer(peerId, mid)); } catch{ /* xabar topilmadi */ }
+      currentPeer = String(peerId);
     }
+    updateBadge();
   };
   const take = (el: Element) => {
     const bubbles = el.matches?.('.bubble[data-mid]') ? [el] : Array.from(el.querySelectorAll?.('.bubble[data-mid]') || []);
