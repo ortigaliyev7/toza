@@ -29,5 +29,9 @@ for p in patches/*.patch; do git -C "$SRC" apply --whitespace=nowarn "$(pwd)/$p"
 cd "$SRC"
 pnpm install --frozen-lockfile
 pnpm exec vite build
+# tweb Vite'da `copyPublicDir: false`: statik fayllar (shriftlar, ikonka shrifti tgico, emoji rasmlari, tovushlar, manifest) yig'ishga KIRMAYDI — qo'lda ko'chiramiz.
+# `public/` da eski tayyor yig'ma ham bor (js/html/version) — uni ko'chirmaymiz, faqat statikni.
+for f in assets changelogs browserconfig.xml site.webmanifest site_apple.webmanifest; do [ -e "public/$f" ] && cp -R "public/$f" dist/; done
+[ -f dist/assets/fonts/tgico.woff ] || { echo "XATO: dist/assets/fonts/tgico.woff yo'q — ikonkalar chiqmaydi"; exit 1; }
 rm -rf ../dist && cp -R dist ../dist
 echo "tayyor: dist/"
