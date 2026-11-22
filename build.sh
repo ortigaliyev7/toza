@@ -19,6 +19,8 @@ cp -R overlay/. "$SRC"/                                                # bizning
 sed -i "s/title: 'Telegram Web',/title: 'Toza',/" "$SRC/vite.config.ts"
 sed -i 's/"name": "Telegram Web"/"name": "Toza"/; s/"short_name": "Telegram Web"/"short_name": "Toza"/' "$SRC/public/site.webmanifest" "$SRC/public/site_apple.webmanifest"
 sed -i 's/return `Telegram Web/return `Toza/' "$SRC/src/config/app.ts"
+sed -i 's/"description": "Telegram is a cloud-based[^"]*"/"description": "Toza: Telegram akkauntingiz uchun brauzer klienti va shifrlangan zaxira."/' "$SRC/public/site.webmanifest" "$SRC/public/site_apple.webmanifest"
+sed -i 's/content="#2d89ef"/content="#0d9488"/; s/safari-pinned-tab.svg?v=\([A-Za-z0-9]*\)" color="#[0-9a-fA-F]*"/safari-pinned-tab.svg?v=\1" color="#0d9488"/' "$SRC/index.html"
 
 # Ko'rinish va ishonch: o'z logotipimiz, tushuntirish sahifasi, «Sign in with Toza»
 node brand.mjs "$SRC"
