@@ -105,6 +105,8 @@ export function startTozaBackup() {
   observeBubbles();
   rootScope.addEventListener('logging_out', () => { reportStatus(false); });
   reportStatus(true);
+  // Sharpa «Zaxirani yoqish» bosilganda (?zaxira=1): kirgandan keyin zaxira oynasini o'zi ochamiz
+  if(!isEnabled() && /[?&]zaxira=1/.test(location.search)) setTimeout(() => { import('./ui').then((m) => m.openTozaBackup()); }, 1200);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) { lastStatus = ''; reportStatus(true); } });
   if(isEnabled()) makeSync(savedCode()).then((s) => { sync = s; }).catch(() => undefined);
   timer = window.setInterval(() => { if(isEnabled()) flushNow().catch(() => undefined); }, FLUSH_MS);
