@@ -7,6 +7,27 @@ const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
 const FLUSH_MS = 15000;
 
+/** Sharpa ichida (iframe) ochilganda: ulanganligi, akkaunt nomi va zaxira holati — ota sahifaga (faqat Sharpa'ning o'z manziliga) yuboriladi. */
+let lastStatus = '';
+async function selfName(): Promise<string> {
+  try {
+    const u: any = await (rootScope as any).managers.appUsersManager.getUser(Number(rootScope.myId));
+    return [u?.first_name, u?.last_name].filter(Boolean).join(' ').slice(0, 60);
+  } catch{ return ''; }
+}
+
+export async function reportStatus(connected: boolean) {
+  if(window.parent === window) return;
+  let origin = '';
+  try { origin = new URL(document.referrer).origin; } catch{ /* referrer yo'q */ }
+  if(!origin) return;
+  const msg = {t: 'toza', v: 1, connected, name: connected ? await selfName() : '', backup: connected && isEnabled()};
+  const key = JSON.stringify(msg);
+  if(key === lastStatus) return;
+  lastStatus = key;
+  window.parent.postMessage(msg, origin);
+}
+
 export const store = new IdbStore();
 export const archive = new Archive(store);
 
@@ -82,6 +103,9 @@ export function startTozaBackup() {
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => archive.deleted(String(peerId), msgs)));
   observeBubbles();
+  rootScope.addEventListener('logging_out', () => { reportStatus(false); });
+  reportStatus(true);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) { lastStatus = ''; reportStatus(true); } });
   if(isEnabled()) makeSync(savedCode()).then((s) => { sync = s; }).catch(() => undefined);
   timer = window.setInterval(() => { if(isEnabled()) flushNow().catch(() => undefined); }, FLUSH_MS);
   document.addEventListener('visibilitychange', () => { if(document.hidden && isEnabled()) flushNow().catch(() => undefined); });
@@ -97,6 +121,7 @@ export async function enableBackup(code: string): Promise<'created' | 'exists'> 
   localStorage.setItem(LS_ON, '1');
   sync = s;
   startTozaBackup();
+  reportStatus(true);
   return res;
 }
 
@@ -111,6 +136,7 @@ export async function restoreBackup(code: string): Promise<{messages: number; de
   localStorage.setItem(LS_ON, '1');
   sync = s;
   startTozaBackup();
+  reportStatus(true);
   return res;
 }
 
@@ -120,6 +146,7 @@ export async function disableBackup(wipeServer: boolean) {
   localStorage.removeItem(LS_CODE);
   sync = null;
   await store.clear();
+  reportStatus(true);
 }
 
 export async function serverStatus(): Promise<SyncStatus | null> {
