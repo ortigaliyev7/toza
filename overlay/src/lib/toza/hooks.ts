@@ -4,7 +4,7 @@ import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
 import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, keyOf, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
 import type {Incoming, SyncStatus} from './core';
 import {IdbStore} from './idb';
-import {alertsOn, pushAlert, setAlertOpener} from './alerts';
+import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -108,6 +108,21 @@ async function captureMedia(m: any, inc: Incoming) {
   } catch{ mediaTried.delete(k); /* keyingi safar qayta uriniladi */ }
 }
 
+// ---- Toza yopiq bo'lgan vaqt (bo'shliq): shu vaqtda kelib o'chirilgan xabarlar matni saqlanmagan bo'lishi mumkin
+const LS_SEEN = 'toza_seen', LS_GAPS = 'toza_gaps', GAP_MIN_MS = 10 * 60 * 1000;
+export type Gap = {from: number; to: number};
+export const gaps = (): Gap[] => { try { return JSON.parse(localStorage.getItem(LS_GAPS) || '[]'); } catch{ return []; } };
+function markSeen() { try { localStorage.setItem(LS_SEEN, String(Date.now())); } catch{ /* xotira yopiq */ } }
+function checkGap() {
+  const last = Number(localStorage.getItem(LS_SEEN) || 0), now = Date.now();
+  if(last && now - last > GAP_MIN_MS) {
+    const g = [...gaps(), {from: last, to: now}].slice(-20);
+    localStorage.setItem(LS_GAPS, JSON.stringify(g));
+    setTimeout(() => notice('Toza', `Toza ${fmtDuration(now - last)} yopiq edi. Shu vaqtda kelib o'chirilgan xabarlarning matni saqlanmagan bo'lishi mumkin.`), 4000);
+  }
+  markSeen();
+}
+
 const canAlert = () => paid && alertsOn() && isEnabled();
 
 async function capture(m: any, announce = false) {
@@ -187,6 +202,9 @@ export function startTozaBackup() {
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));
+  if(isEnabled()) checkGap();
+  window.setInterval(() => { if(isEnabled()) markSeen(); }, 30000);
+  window.addEventListener('pagehide', markSeen);
   setAlertOpener(() => { import('./ui').then((m) => m.openTozaBackup()); });
   observeBubbles();
   rootScope.addEventListener('logging_out', () => { reportStatus(false); });

@@ -1,5 +1,6 @@
 import {alertsOn, setAlertsOn} from './alerts';
-import {archive, chatEnabled, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
+import {fmtDuration} from './alerts';
+import {archive, chatEnabled, gaps, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
   bad_code: 'Kod noto\'g\'ri yozilgan. 26 belgi bo\'lishi kerak (harf va 2–7 raqamlari).',
@@ -94,6 +95,15 @@ export function openTozaBackup() {
     );
   }
 
+  function gapNote() {
+    const g = gaps().slice(-5).reverse();
+    if(!g.length) return h('div');
+    return h('div', {style: 'margin:10px 0;padding:10px;border-radius:12px;background:rgba(240,160,30,.15);font-size:13px;'},
+      h('b', {}, 'Toza yopiq bo\'lgan vaqtlar'),
+      h('div', {style: 'opacity:.85;margin:4px 0;'}, 'Shu paytlarda kelib o\'chirilgan xabarlarning matni saqlanmagan bo\'lishi mumkin. To\'liq qamrov uchun Toza\'ni ochiq qoldiring yoki Arxiv seyfini yoqing.'),
+      ...g.map((x) => h('div', {}, `${fmtDate(Math.floor(x.from / 1000))} → ${fmtDate(Math.floor(x.to / 1000))} (${fmtDuration(x.to - x.from)})`)));
+  }
+
   function alertRow() {
     let on = alertsOn();
     const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
@@ -131,6 +141,7 @@ export function openTozaBackup() {
       note('Matn bepul saqlanadi. Ovozli xabar, rasm va dumaloq video faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
+      gapNote(),
       list,
       h('hr', {style: 'border:0;border-top:1px solid rgba(127,127,127,.3);margin:14px 0'}),
       row(btn('Zaxirani o\'chirish', async() => {

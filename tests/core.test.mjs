@@ -247,3 +247,10 @@ test('xabar matni: o\'chirilgan va tahrirlangan, uzun matn qisqartiriladi', () =
   const long = describeAlert({kind: 'deleted', who: 'Ali', text: 'x'.repeat(500)});
   assert.ok(long.length < 130 && long.includes('…'));
 });
+
+import {fmtDuration} from '../overlay/src/lib/toza/alerts.ts';
+test('davomiylik: daqiqa, soat, kun', () => {
+  assert.equal(fmtDuration(25 * 60000), '25 daqiqa');
+  assert.equal(fmtDuration(150 * 60000), '2 soat 30 daqiqa');
+  assert.equal(fmtDuration(120 * 3600000), '5 kun');
+});

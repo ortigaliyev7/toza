@@ -55,3 +55,13 @@ export function pushAlert(a: Alert) {
     }
   }, 1200);
 }
+
+/** Oddiy bir martalik xabar (masalan, «Toza yopiq edi»). */
+export function notice(title: string, body: string) { toast(title, body); system(title, body); }
+
+export function fmtDuration(ms: number) {
+  const m = Math.round(ms / 60000);
+  if(m < 60) return `${m} daqiqa`;
+  const h = Math.floor(m / 60);
+  return h < 48 ? `${h} soat${m % 60 ? ' ' + (m % 60) + ' daqiqa' : ''}` : `${Math.round(h / 24)} kun`;
+}
