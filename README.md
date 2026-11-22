@@ -28,5 +28,8 @@ Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arx
 2. **Variables**: `VITE_API_ID`, `VITE_API_HASH`, `VITE_TB_URL`.
 3. **Networking → Generate Domain**. Yig'ish ~3–5 daqiqa.
 
+## Sharpa ichida ochish
+Toza Sharpa Mini App ichida to'liq ekranli iframe sifatida ochiladi (kirish ham shu yerda). `FRAME_ANCESTORS` (Railway Variables, bo'sh joy bilan) — Toza'ni qaysi saytlar ichiga joylashtirish mumkinligi; standart: Sharpa botining manzili va Telegram. Sharpa manzili boshqacha bo'lsa — shu o'zgaruvchini yangilang.
+
 ## Qoidalar (Telegram API shartlari)
 Ommaviy xabar/spam yo'q, foydalanuvchi sessiyasi serverga yuborilmaydi, «Telegram» nomi va belgisi ilova nomi/belgisida ishlatilmaydi (o'z logotipimiz kerak).
