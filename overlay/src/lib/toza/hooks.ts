@@ -39,7 +39,19 @@ let started = false;
 let timer: number | undefined;
 export const state = {lastError: '' as string, lastFlush: 0};
 
-export const serverUrl = (): string => ((import.meta as any).env?.VITE_TB_URL as string) || '';
+/** Zaxira serveri manzili (Sharpa bot servisi): faqat «origin» olinadi (oxiridagi yo'l/slash xalaqit bermaydi). Toza o'zi statik sahifa, `/tb/*` unda yo'q:
+ *  manzil Toza'ning o'zini ko'rsatsa yoki bo'sh bo'lsa, Sharpa ichida ochilganda Sharpa'ning o'z manzili (document.referrer) ishlatiladi. */
+export const serverUrl = (): string => {
+  const env = ((import.meta as any).env?.VITE_TB_URL as string) || '';
+  let origin = '';
+  try { if(env) origin = new URL(env, location.href).origin; } catch{ /* noto'g'ri manzil */ }
+  if(origin && origin !== location.origin) return origin;
+  try {
+    const ref = new URL(document.referrer).origin;
+    if(window.parent !== window && ref && ref !== location.origin) return ref;
+  } catch{ /* referrer yo'q */ }
+  return '';
+};
 export const isEnabled = () => localStorage.getItem(LS_ON) === '1' && !!localStorage.getItem(LS_CODE);
 export const savedCode = () => localStorage.getItem(LS_CODE) || '';
 export {generateRecoveryCode, normalizeCode, TozaApiError};

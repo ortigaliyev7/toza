@@ -12,7 +12,7 @@ const ERR: Record<string, string> = {
   rate: 'Juda ko\'p so\'rov. Birozdan keyin urinib ko\'ring.',
   unavailable: 'Saqlash vaqtincha ishlamayapti. Keyinroq urinib ko\'ring.'
 };
-const errText = (e: any) => ERR[e instanceof TozaApiError ? (e.code === 'bad_code' && e.status === 400 ? 'bad_link' : e.code) : e?.message] || ('Xato: ' + (e?.message || e));
+const errText = (e: any) => (e instanceof TozaApiError && e.code === 'error' && [404, 405].includes(e.status) ? 'Zaxira serveri manzili noto\'g\'ri: Toza servisida VITE_TB_URL Sharpa bot servisining manzili bo\'lishi kerak (admin sozlaydi).' : '') || ERR[e instanceof TozaApiError ? (e.code === 'bad_code' && e.status === 400 ? 'bad_link' : e.code) : e?.message] || ('Xato: ' + (e?.message || e));
 const fmtSize = (n: number) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB';
 const fmtDate = (s: number) => new Date(s * 1000).toLocaleString();
 
