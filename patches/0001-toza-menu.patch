@@ -1,0 +1,35 @@
+diff --git a/src/components/sidebarLeft/index.ts b/src/components/sidebarLeft/index.ts
+index 6c7c795..8e826c3 100644
+--- a/src/components/sidebarLeft/index.ts
++++ b/src/components/sidebarLeft/index.ts
+@@ -1,6 +1,7 @@
+ import {createEffect, createRoot, createSignal, createUniqueId, on} from 'solid-js';
+ import appImManager from '@lib/appImManager';
+ import rootScope from '@lib/rootScope';
++import {startTozaBackup} from '@lib/toza/hooks';
+ import {createSearchGroup, getSearchTransitionDuration, SearchGroup} from '@components/searchGroup';
+ import crossfadeContent, {CROSS_FADE_KEYFRAMES, getAnimatedOptions} from '@helpers/dom/crossfadeContent';
+ import DialogsContextMenu from '@components/dialogsContextMenu';
+@@ -802,6 +803,14 @@ export class AppSidebarLeft extends SidebarSlider {
+         });
+       },
+       verify: () => IS_CALL_SUPPORTED || IS_CONFERENCE_CALL_SUPPORTED
++    }, {
++      icon: 'lock',
++      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Toza zaxira'; return s; })(),
++      onClick: () => {
++        closeTabsBefore(() => {
++          import('@lib/toza/ui').then((m) => m.openTozaBackup());
++        });
++      }
+     }, {
+       id: 'settings',
+       icon: 'settings',
+@@ -814,6 +823,7 @@ export class AppSidebarLeft extends SidebarSlider {
+       }
+     }, moreSubmenu];
+ 
++    startTozaBackup();
+     const filteredButtons = menuButtons.filter(Boolean);
+     const filteredButtonsSliced = filteredButtons.slice();
+     const buttonMenuToggle = ButtonMenuToggle({

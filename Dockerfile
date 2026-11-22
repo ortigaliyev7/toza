@@ -2,11 +2,13 @@
 FROM node:22-bookworm AS build
 ARG VITE_API_ID
 ARG VITE_API_HASH
-ENV VITE_API_ID=$VITE_API_ID VITE_API_HASH=$VITE_API_HASH CI=true
+ARG VITE_TB_URL
+ENV VITE_API_ID=$VITE_API_ID VITE_API_HASH=$VITE_API_HASH VITE_TB_URL=$VITE_TB_URL CI=true
 RUN npm i -g pnpm@11.16.0
 WORKDIR /w
 COPY build.sh ./
 COPY overlay ./overlay
+COPY patches ./patches
 RUN chmod +x build.sh && ./build.sh
 
 FROM nginx:1.27-alpine

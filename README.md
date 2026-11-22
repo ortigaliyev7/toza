@@ -5,8 +5,15 @@ Telegram akkauntini brauzerdan ulaydigan klient. **Premium shart emas**: foydala
 Asos: [morethanwords/tweb](https://github.com/morethanwords/tweb) (Telegram Web K), litsenziya **GPL-3.0** (shu repo ham GPL-3.0, manba ochiq).
 Web K to'liq ko'chirilmaydi: `build.sh` uni aniq versiyada (`TWEB_REF`) yuklaydi, `overlay/` dagi o'zgartirishlarimizni qo'yadi, nomini «Toza» ga almashtiradi va yig'adi.
 
+## Toza zaxirasi (o'chirilgan xabarlarni saqlash va tiklash)
+Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arxivga (IndexedDB) yozadi: yangi, tahrirlangan va o'chirilganlarini. Arxiv **shifrlanib** Sharpa serveriga yuklanadi (nol bilim: shifrlash kaliti serverga berilmaydi). Yangi qurilmada tiklash kodi bilan arxiv tiklanadi.
+- Kod: `overlay/src/lib/toza/` (`core.ts` — kalit/shifrlash/arxiv/sinxronlash, tweb'ga bog'liq emas; `hooks.ts`, `ui.ts`, `idb.ts` — tweb bilan bog'lash). tweb'ga o'zgartirish: `patches/0001-toza-menu.patch`.
+- Server: Sharpa bot servisidagi `/tb/*` (shifrlangan bo'laklar ombor kanalida saqlanadi).
+- Cheklov: faqat Toza ochiq turganda ko'rilgan/kelgan xabarlar saqlanadi. Hozircha faqat matn (media keyingi bosqichda).
+- Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.
+
 ## Kalitlar
-`api_id` / `api_hash` — `my.telegram.org` dan (ilova nomi «Toza»). Repoga YOZILMAYDI: mahalliy yig'ishda `.env.local` (`.env.example` ga qarang), Railway'da Variables.
+`api_id` / `api_hash` — `my.telegram.org` dan (ilova nomi «Toza»). Repoga YOZILMAYDI: mahalliy yig'ishda `.env.local` (`.env.example` ga qarang), Railway'da Variables. Zaxira serveri: `VITE_TB_URL` (Sharpa bot servisining ochiq manzili; botda `TB_ORIGINS` = Toza manzili).
 
 ## Yig'ish
 ```bash
@@ -15,7 +22,7 @@ Web K to'liq ko'chirilmaydi: `build.sh` uni aniq versiyada (`TWEB_REF`) yuklaydi
 
 ## Railway
 1. New → GitHub Repo → `ortigaliyev7/toza` (Root Directory kerak emas, Dockerfile repo ildizida).
-2. **Variables**: `VITE_API_ID`, `VITE_API_HASH`.
+2. **Variables**: `VITE_API_ID`, `VITE_API_HASH`, `VITE_TB_URL`.
 3. **Networking → Generate Domain**. Yig'ish ~3–5 daqiqa.
 
 ## Qoidalar (Telegram API shartlari)

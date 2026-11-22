@@ -19,6 +19,10 @@ cp -R overlay/. "$SRC"/                                                # bizning
 sed -i "s/title: 'Telegram Web',/title: 'Toza',/" "$SRC/vite.config.ts"
 sed -i 's/"name": "Telegram Web"/"name": "Toza"/; s/"short_name": "Telegram Web"/"short_name": "Toza"/' "$SRC/public/site.webmanifest" "$SRC/public/site_apple.webmanifest"
 sed -i 's/return `Telegram Web/return `Toza/' "$SRC/src/config/app.ts"
+
+# Toza zaxirasi: tweb'ga minimal o'zgartirishlar (patches/*.patch), asosiy kod overlay/src/lib/toza/ da
+for p in patches/*.patch; do git -C "$SRC" apply --whitespace=nowarn "$(pwd)/$p"; done
+[ -n "${VITE_TB_URL:-}" ] || echo "ESLATMA: VITE_TB_URL berilmagan — zaxira serveri sozlanmagan bo'ladi (.env.example)"
 cd "$SRC"
 pnpm install --frozen-lockfile
 pnpm exec vite build

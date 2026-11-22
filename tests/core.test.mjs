@@ -1,0 +1,160 @@
+// Toza zaxirasi yadrosi: kalitlar, shifrlash, arxiv, sinxronlash. Ishga tushirish: node --experimental-strip-types --test tests/
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  Archive, MemoryStore, Sync, TozaApiError, decryptChunk, deriveKeys, encryptChunk, formatCode, generateRecoveryCode, keyOf, mergeMessage, normalizeCode, restoreInto
+} from '../overlay/src/lib/toza/core.ts';
+
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+/** Serverning /tb/* xatti-harakatini (tbackup.py) taqlid qiluvchi xotiradagi soxta server. */
+function fakeServer({quota = 25 * 1024 * 1024} = {}) {
+  const meta = new Map(); // id -> verifier
+  const chunks = new Map(); // id -> Map(seq -> Uint8Array)
+  const seen = []; // serverga tushgan hamma baytlar (ochiq matn yo'qligini tekshirish uchun)
+  const sha = async (hex) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(hex.match(/../g).map((h) => parseInt(h, 16))))), (b) => b.toString(16).padStart(2, '0')).join('');
+  const json = (o, status = 200) => new Response(JSON.stringify(o), {status, headers: {'Content-Type': 'application/json'}});
+  const f = async (url, init = {}) => {
+    const u = new URL(url);
+    const h = init.headers || {};
+    const id = h['X-TB-Id'], tok = h['X-TB-Token'];
+    if(u.pathname === '/tb/init') {
+      if(meta.has(id)) return (await sha(tok)) === meta.get(id) ? json({status: 'exists'}) : json({error: 'denied'}, 403);
+      meta.set(id, await sha(tok)); chunks.set(id, new Map());
+      return json({status: 'created'});
+    }
+    if(!meta.has(id)) return json({error: 'none'}, 404);
+    if((await sha(tok)) !== meta.get(id)) return json({error: 'denied'}, 403);
+    const store = chunks.get(id);
+    const m = u.pathname.match(/^\/tb\/chunk\/(\d+)$/);
+    if(m && init.method === 'PUT') {
+      const body = new Uint8Array(await new Response(init.body).arrayBuffer());
+      seen.push(body);
+      const used = [...store.entries()].filter(([s]) => s !== +m[1]).reduce((a, [, v]) => a + v.length, 0);
+      if(used + body.length > quota) return json({error: 'quota'}, 507);
+      store.set(+m[1], body);
+      return json({ok: true});
+    }
+    if(m && init.method === 'GET') return store.has(+m[1]) ? new Response(store.get(+m[1])) : json({error: 'none'}, 404);
+    if(u.pathname === '/tb/list') return json({chunks: [...store.entries()].map(([seq, v]) => ({seq, size: v.length, ts: 0})).sort((a, b) => a.seq - b.seq), used: [...store.values()].reduce((a, v) => a + v.length, 0), quota, linked: false, updated: 0});
+    if(u.pathname === '/tb/link') return JSON.parse(init.body).code === 'GOOD1234' ? json({ok: true}) : json({error: 'bad_code'}, 400);
+    if(u.pathname === '/tb' && init.method === 'DELETE') { meta.delete(id); chunks.delete(id); return json({ok: true}); }
+    return json({error: 'bad'}, 400);
+  };
+  return {fetch: f, meta, chunks, seen};
+}
+
+test('tiklash kodi: format, normallashtirish, deterministik kalitlar', async () => {
+  const code = generateRecoveryCode();
+  assert.match(code, /^([A-Z2-7]{4}-){6}[A-Z2-7]{2}$/);
+  assert.notEqual(code, generateRecoveryCode());
+  assert.equal(normalizeCode(code.toLowerCase().replaceAll('-', ' ')), code.replaceAll('-', ''));
+  for(const bad of ['', 'abc', code + 'A', code.slice(0, -1), '0'.repeat(26), '1'.repeat(26), '8'.repeat(26)]) assert.equal(normalizeCode(bad), null);
+  const a = await deriveKeys(code), b = await deriveKeys(code.toLowerCase());
+  assert.equal(a.id, b.id); assert.equal(a.token, b.token);
+  assert.match(a.id, /^[0-9a-f]{64}$/); assert.match(a.token, /^[0-9a-f]{64}$/);
+  assert.notEqual(a.id, a.token);
+  assert.notEqual((await deriveKeys(generateRecoveryCode())).id, a.id);
+  await assert.rejects(deriveKeys('xx'), /bad_code/);
+  assert.equal(a.key.extractable, false); // shifrlash kaliti brauzerdan chiqarib bo'lmaydi
+});
+
+test('shifrlash: aylanish, har safar boshqa IV, noto\'g\'ri kalit/buzilgan bo\'lak rad etiladi', async () => {
+  const k1 = await deriveKeys(generateRecoveryCode()), k2 = await deriveKeys(generateRecoveryCode());
+  const plain = te.encode('Salom, bu maxfiy xabar. '.repeat(200));
+  const c1 = await encryptChunk(k1.key, plain), c2 = await encryptChunk(k1.key, plain);
+  assert.notDeepEqual(c1, c2);
+  assert.ok(c1.length < plain.length / 5); // gzip ishlaydi
+  assert.deepEqual(await decryptChunk(k1.key, c1), plain);
+  await assert.rejects(decryptChunk(k2.key, c1));
+  const tampered = c1.slice(); tampered[tampered.length - 1] ^= 1;
+  await assert.rejects(decryptChunk(k1.key, tampered));
+  await assert.rejects(decryptChunk(k1.key, new Uint8Array(5)), /bad_chunk/);
+});
+
+test('arxiv: yangi xabar, tahrir versiyalari, o\'chirilgan belgisi', async () => {
+  let t = 1_000_000;
+  const arc = new Archive(new MemoryStore(), () => (t += 1000));
+  assert.equal(await arc.capture({peerId: 5, mid: 1, date: 10, from: 7, text: 'salom'}), 'new');
+  assert.equal(await arc.capture({peerId: 5, mid: 1, date: 10, text: 'salom'}), 'same');
+  assert.equal(await arc.capture({peerId: 5, mid: 1, date: 10, text: 'salom, dunyo'}), 'edited');
+  await arc.capture({peerId: 5, mid: 2, date: 11, text: 'ikkinchi'});
+  assert.equal(await arc.deleted(5, [1, 99]), 1); // 99 bizda yo'q — sanalmaydi
+  assert.equal(await arc.deleted(5, [1]), 0); // ikkinchi marta sanalmaydi
+  const del = await arc.deletedMessages();
+  assert.equal(del.length, 1);
+  assert.equal(del[0].text, 'salom, dunyo'); assert.deepEqual(del[0].edits.map((e) => e.text), ['salom']);
+  assert.ok(del[0].deleted > 0);
+});
+
+test('birlashtirish: o\'chirilgan belgisi yo\'qolmaydi, versiyalar birlashadi, matn yangisidan', () => {
+  const base = {k: keyOf(1, 1), peerId: '1', mid: 1, date: 1, text: 'v1', u: 10};
+  const edited = {...base, text: 'v2', u: 20, edits: [{t: 5, text: 'v1'}]};
+  const deleted = {...base, deleted: 99, u: 15};
+  const m = mergeMessage(edited, deleted);
+  assert.equal(m.text, 'v2'); assert.equal(m.deleted, 99); assert.equal(m.edits.length, 1);
+  assert.deepEqual(mergeMessage(deleted, edited), m); // tartibga bog'liq emas
+});
+
+test('sinxronlash: yuklash -> yangi qurilmada tiklash; server ochiq matnni ko\'rmaydi', async () => {
+  const code = generateRecoveryCode();
+  const srv = fakeServer();
+  const keys = await deriveKeys(code);
+  const storeA = new MemoryStore(), arcA = new Archive(storeA);
+  const secret = 'maxfiy-parol-12345';
+  await arcA.capture({peerId: 1, mid: 1, date: 1, from: 2, text: 'Salom ' + secret});
+  await arcA.capture({peerId: 1, mid: 2, date: 2, text: 'ikkinchi'});
+  await arcA.deleted(1, [1]);
+  const syncA = new Sync({baseUrl: 'https://srv.test', keys, store: storeA, fetch: srv.fetch});
+  assert.equal(await syncA.init(), 'created'); assert.equal(await syncA.init(), 'exists');
+  assert.equal(await syncA.flush(), 1);
+  assert.equal((await storeA.dirty(10)).length, 0); // yuklangach «toza»
+  assert.equal(await syncA.flush(), 0);
+  for(const body of srv.seen) assert.ok(!td.decode(body).includes(secret)); // serverda ochiq matn yo'q
+
+  // yangi qurilma: bo'sh arxiv, faqat tiklash kodi
+  const keysB = await deriveKeys(code);
+  const storeB = new MemoryStore(), arcB = new Archive(storeB);
+  const res = await restoreInto(new Sync({baseUrl: 'https://srv.test', keys: keysB, store: storeB, fetch: srv.fetch}), arcB);
+  assert.deepEqual(res, {messages: 2, deleted: 1});
+  const del = await arcB.deletedMessages();
+  assert.equal(del.length, 1); assert.ok(del[0].text.includes(secret));
+  assert.equal((await storeB.dirty(10)).length, 0); // tiklanganlar qayta yuklanmaydi
+});
+
+test('sinxronlash: bo\'laklarga bo\'lish, davom ettirish (seq), keyingi flush yangi bo\'lak', async () => {
+  const srv = fakeServer();
+  const keys = await deriveKeys(generateRecoveryCode());
+  const store = new MemoryStore(), arc = new Archive(store);
+  for(let i = 0; i < 30; i++) await arc.capture({peerId: 1, mid: i, date: i, text: 'x'.repeat(300) + i});
+  const sync = new Sync({baseUrl: 'https://srv.test/', keys, store, fetch: srv.fetch, maxBatchBytes: 3000});
+  await sync.init();
+  const n = await sync.flush();
+  assert.ok(n >= 3);
+  assert.equal((await sync.status()).chunks, n);
+  await arc.capture({peerId: 1, mid: 100, date: 100, text: 'yangi'});
+  assert.equal(await sync.flush(), 1);
+  const sync2 = new Sync({baseUrl: 'https://srv.test', keys, store: new MemoryStore(), fetch: srv.fetch}); // sahifa qayta ochildi
+  assert.equal((await sync2.fetchAll()).length, 31);
+});
+
+test('xatolar: begona kod, bo\'lmagan zaxira, hajm, bog\'lash, o\'chirish', async () => {
+  const srv = fakeServer({quota: 600});
+  const keys = await deriveKeys(generateRecoveryCode()), other = await deriveKeys(generateRecoveryCode());
+  const store = new MemoryStore(), arc = new Archive(store);
+  const sync = new Sync({baseUrl: 'https://srv.test', keys, store, fetch: srv.fetch});
+  await assert.rejects(sync.status(), (e) => e instanceof TozaApiError && e.status === 404); // zaxira yo'q (tiklashda «noto'g'ri kod»)
+  await sync.init();
+  await assert.rejects(new Sync({baseUrl: 'https://srv.test', keys: {...other, id: keys.id}, store, fetch: srv.fetch}).status(), (e) => e.status === 403);
+  for(let i = 0; i < 40; i++) await arc.capture({peerId: 1, mid: i, date: i, text: Math.random().toString(36).repeat(8)});
+  await assert.rejects(sync.flush(), (e) => e.status === 507 && e.code === 'quota');
+  assert.ok((await store.dirty(100)).length > 0); // yuklanmagan yozuvlar yo'qolmaydi
+  await sync.link('GOOD1234');
+  await assert.rejects(sync.link('nope'), (e) => e.code === 'bad_code');
+  await sync.wipe();
+  await assert.rejects(sync.status(), (e) => e.status === 404);
+});
+
+test('formatCode', () => assert.equal(formatCode('ABCDEFGHIJ'), 'ABCD-EFGH-IJ'));
