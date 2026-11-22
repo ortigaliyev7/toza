@@ -42,7 +42,8 @@ export const state = {lastError: '' as string, lastFlush: 0};
 /** Zaxira serveri manzili (Sharpa bot servisi): faqat «origin» olinadi (oxiridagi yo'l/slash xalaqit bermaydi). Toza o'zi statik sahifa, `/tb/*` unda yo'q:
  *  manzil Toza'ning o'zini ko'rsatsa yoki bo'sh bo'lsa, Sharpa ichida ochilganda Sharpa'ning o'z manzili (document.referrer) ishlatiladi. */
 export const serverUrl = (): string => {
-  const env = ((import.meta as any).env?.VITE_TB_URL as string) || '';
+  let env = (((import.meta as any).env?.VITE_TB_URL as string) || '').trim();
+  if(env && !/^https?:\/\//i.test(env)) env = 'https://' + env;                      // «https://» yozilmagan bo'lsa o'zi qo'shiladi
   let origin = '';
   try { if(env) origin = new URL(env, location.href).origin; } catch{ /* noto'g'ri manzil */ }
   if(origin && origin !== location.origin) return origin;
