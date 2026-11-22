@@ -21,9 +21,9 @@
 <script>
 (function () {
   var D = {
-    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash"},
-    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить"},
-    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", rt: "The page did not load completely (the connection may be slow).", rl: "Reload"}
+    uz: {sub: "Telegram akkauntingizni brauzerda ochadi. Premium shart emas.", b1: "Telegram'ning rasmiy protokoli (MTProto) orqali ulanadi.", b2: "Raqamingiz va kod faqat Telegram'ga yuboriladi, Sharpa serveriga emas.", b3: "Sessiya faqat shu brauzerda saqlanadi. Telegram → Sozlamalar → Qurilmalar orqali istalgan payt uzishingiz mumkin.", warn: "Telegram kodini hech kimga aytmang. Toza uni faqat shu sahifaning o'zida so'raydi.", go: "Tushundim, davom etish", rt: "Sahifa to'liq yuklanmadi (internet sekin bo'lishi mumkin).", rl: "Qayta yuklash", inst: "Toza'ni ilova qilib o'rnatish", ios: "Ilova qilish: Ulashish → «Bosh ekranga qo'shish»"},
+    ru: {sub: "Открывает ваш аккаунт Telegram в браузере. Premium не нужен.", b1: "Подключение по официальному протоколу Telegram (MTProto).", b2: "Номер и код отправляются только в Telegram, не на сервер Sharpa.", b3: "Сессия хранится только в этом браузере. Отключить можно в любой момент: Telegram → Настройки → Устройства.", warn: "Никому не сообщайте код Telegram. Toza запрашивает его только на этой странице.", go: "Понятно, продолжить", rt: "Страница загрузилась не полностью (возможно, медленный интернет).", rl: "Перезагрузить", inst: "Установить Toza как приложение", ios: "Как приложение: Поделиться → «На экран Домой»"},
+    en: {sub: "Opens your Telegram account in the browser. No Premium needed.", b1: "Connects through Telegram's official protocol (MTProto).", b2: "Your number and code go only to Telegram, never to the Sharpa server.", b3: "The session stays in this browser only. You can end it any time in Telegram → Settings → Devices.", warn: "Never tell anyone your Telegram code. Toza asks for it only on this page.", go: "Got it, continue", rt: "The page did not load completely (the connection may be slow).", rl: "Reload", inst: "Install Toza as an app", ios: "Make it an app: Share → «Add to Home Screen»"}
   };
   var lang = String(navigator.language || 'uz').slice(0, 2);
   var T = D[lang] || D.uz;
@@ -63,6 +63,18 @@
       if (out && !lastOut) { try { window.parent.postMessage({t: 'toza', v: 1, connected: false, name: '', backup: false}, origin); } catch (e) { /* ... */ } }
       lastOut = out;
     }, 1500);
+  }
+  // Toza'ni alohida ilova qilib bosh ekranga qo'shish (Sharpa ichida emas, to'g'ridan-to'g'ri brauzerda ochilganda)
+  var standalone = false; try { standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { /* ... */ }
+  if (!embedded && !standalone) {
+    var dp = null, pill = document.createElement('button');
+    pill.id = 'toza-install';
+    pill.style.cssText = 'display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:2147483000;border:0;border-radius:99px;padding:11px 18px;font:600 14px system-ui,sans-serif;color:#fff;background:linear-gradient(135deg,#0ea5ff,#1d5fd6);box-shadow:0 6px 20px rgba(20,60,140,.35);cursor:pointer;max-width:92vw';
+    document.body.appendChild(pill);
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; pill.textContent = T.inst; pill.style.display = 'block'; pill.onclick = function () { dp.prompt(); dp = null; pill.style.display = 'none'; }; });
+    window.addEventListener('appinstalled', function () { pill.style.display = 'none'; });
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent), tipSeen = false; try { tipSeen = localStorage.getItem('toza_ios_tip') === '1'; } catch (e) { tipSeen = true; }
+    if (ios && !tipSeen) { pill.textContent = T.ios; pill.style.display = 'block'; pill.onclick = function () { try { localStorage.setItem('toza_ios_tip', '1'); } catch (e) { /* ... */ } pill.style.display = 'none'; }; }
   }
 }());
 </script>
