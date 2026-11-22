@@ -85,9 +85,10 @@ async function captureMedia(m: any, inc: Incoming) {
   const doc = m.media.document, photo = m.media.photo;
   const isVoice = m.media._ === 'messageMediaDocument' && doc?.type === 'voice';
   const isRound = m.media._ === 'messageMediaDocument' && doc?.type === 'round';
+  const isVideo = m.media._ === 'messageMediaDocument' && doc?.type === 'video';
   const isPhoto = m.media._ === 'messageMediaPhoto' && !!photo;
-  if(!isVoice && !isRound && !isPhoto) return;
-  if((isVoice || isRound) && Number(doc.size) > (isVoice ? VOICE_MAX_BYTES : MEDIA_MAX_BYTES.round)) return;
+  if(!isVoice && !isRound && !isVideo && !isPhoto) return;
+  if((isVoice || isRound || isVideo) && Number(doc.size) > (isVoice ? VOICE_MAX_BYTES : isRound ? MEDIA_MAX_BYTES.round : MEDIA_MAX_BYTES.video)) return;
   mediaTried.add(k);
   try {
     if(isVoice) {
@@ -95,10 +96,10 @@ async function captureMedia(m: any, inc: Incoming) {
       const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
       if(!blob || blob.size > VOICE_MAX_BYTES) return;
       await archive.captureVoice(inc, {mime: doc.mime_type || blob.type || 'audio/ogg', dur: Number(doc.duration) || 0, b64: await toB64(blob)});
-    } else if(isRound) {
+    } else if(isRound || isVideo) {
       if(await archive.mediaOf(inc.peerId, inc.mid)) return;
       const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
-      if(blob) await archive.captureMedia(inc, 'round', doc.mime_type || blob.type || 'video/mp4', Number(doc.duration) || 0, await toBytes(blob));
+      if(blob) await archive.captureMedia(inc, isRound ? 'round' : 'video', doc.mime_type || blob.type || 'video/mp4', Number(doc.duration) || 0, await toBytes(blob));
     } else {
       if(await archive.mediaOf(inc.peerId, inc.mid)) return;
       const size = choosePhotoSize(photo, 1280, 1280);                  // 1280 px gacha (sifatli, lekin og'ir emas)
@@ -144,7 +145,7 @@ async function onDeleted(peerId: string, mids: Iterable<number>) {
       const rec = await store.get(keyOf(peerId, mid));
       if(rec && !rec.deleted && !rec.out) {
         const voice = await archive.voiceOf(peerId, mid), file = await archive.mediaOf(peerId, mid);
-        pushAlert({kind: 'deleted', who, text: rec.text || (voice ? 'ovozli xabar' : file ? (file.kind === 'photo' ? 'rasm' : 'dumaloq video') : rec.kind ? rec.kind.replace('messageMedia', '').toLowerCase() : '')});
+        pushAlert({kind: 'deleted', who, text: rec.text || (voice ? 'ovozli xabar' : file ? (file.kind === 'photo' ? 'rasm' : file.kind === 'round' ? 'dumaloq video' : 'video') : rec.kind ? rec.kind.replace('messageMedia', '').toLowerCase() : '')});
       }
     }
   }
@@ -279,6 +280,16 @@ export async function chatUsage(): Promise<{peerId: string; msgs: number; files:
     by.set(m.peerId, e);
   }
   return [...by.values()].sort((a, b) => b.bytes - a.bytes);
+}
+
+/** Chatni zaxiradan butunlay olib tashlaydi: saqlash o'chadi, mahalliy nusxa o'chadi, serverdagi zaxira qolgan chatlardan qayta yoziladi. */
+export async function purgeChat(peerId: string): Promise<void> {
+  if(!sync) throw new Error('off');
+  setChatEnabled(peerId, false);
+  await archive.purgePeer(peerId);
+  await sync.reset();
+  await store.markAllDirty();
+  await flushNow();
 }
 
 export async function counts() {

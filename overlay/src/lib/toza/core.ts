@@ -97,7 +97,7 @@ export type ArchivedMessage = {
   edits?: {t: number; text: string}[]; // oldingi versiyalar
   deleted?: number;                // o'chirilgan vaqt (sekund)
   voice?: {mime: string; dur: number; b64: string}; // ovozli xabar (faqat `v:` yozuvlarida): kichik, bir marta yuklanadi
-  media?: {kind: 'photo' | 'round'; mime: string; dur: number; i: number; n: number; b64: string}; // rasm / dumaloq video bo'lagi (faqat `m:` yozuvlarida)
+  media?: {kind: 'photo' | 'round' | 'video'; mime: string; dur: number; i: number; n: number; b64: string}; // rasm / dumaloq video bo'lagi (faqat `m:` yozuvlarida)
   u: number;                       // oxirgi o'zgarish vaqti (ms) — birlashtirishda yangisi yutadi
 };
 
@@ -117,7 +117,7 @@ export const isMediaKey = (k: string) => k.startsWith('m:');
 /** Matn emas, fayl yozuvi (ovoz/rasm/video): xabarlar ro'yxati va hisoblarda alohida. */
 export const isBlobKey = (k: string) => isVoiceKey(k) || isMediaKey(k);
 export const MEDIA_PART_BYTES = 700_000;           // bitta yozuvdagi xom bayt (base64 ~933 KB: bitta bo'lakka sig'adi)
-export const MEDIA_MAX_BYTES = {photo: 5_000_000, round: 15_000_000};
+export const MEDIA_MAX_BYTES = {photo: 5_000_000, round: 15_000_000, video: 25_000_000};
 export const VOICE_MAX_BYTES = 1_000_000;         // bundan katta ovoz saqlanmaydi (taxminan 2-3 daqiqa)
 
 export interface ArchiveStore {
@@ -127,6 +127,8 @@ export interface ArchiveStore {
   clearDirty(items: {k: string; u: number}[]): Promise<void>;
   all(): Promise<ArchivedMessage[]>;
   clear(): Promise<void>;
+  remove(keys: string[]): Promise<void>;
+  markAllDirty(): Promise<void>;
 }
 
 export class MemoryStore implements ArchiveStore {
@@ -137,6 +139,8 @@ export class MemoryStore implements ArchiveStore {
   async clearDirty(items: {k: string; u: number}[]) { for(const {k, u} of items) { const x = this.m.get(k); if(x && x.rec.u === u) x.d = false; } }
   async all() { return [...this.m.values()].map((x) => structuredClone(x.rec)); }
   async clear() { this.m.clear(); }
+  async remove(keys: string[]) { for(const k of keys) this.m.delete(k); }
+  async markAllDirty() { for(const x of this.m.values()) x.d = true; }
 }
 
 /** Ikki nusxani birlashtiradi: o'chirilgan belgisi saqlanadi, versiyalar birlashadi, matn — yangisidan. */
@@ -183,7 +187,7 @@ export class Archive {
   }
 
   /** Rasm yoki dumaloq videoni bo'laklab saqlaydi (bir marta). Qaytaradi: saqlandimi (katta bo'lsa yoki bor bo'lsa — yo'q). */
-  async captureMedia(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, kind: 'photo' | 'round', mime: string, dur: number, bytes: Uint8Array): Promise<boolean> {
+  async captureMedia(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, kind: 'photo' | 'round' | 'video', mime: string, dur: number, bytes: Uint8Array): Promise<boolean> {
     if(!bytes.length || bytes.length > MEDIA_MAX_BYTES[kind]) return false;
     if(await this.store.get(mediaKey(m.peerId, m.mid, 0))) return false;
     const n = Math.ceil(bytes.length / MEDIA_PART_BYTES);
@@ -195,7 +199,7 @@ export class Archive {
   }
 
   /** Saqlangan rasm/dumaloq video: hamma bo'laklar bo'lsa birlashtirib qaytaradi, aks holda undefined. */
-  async mediaOf(peerId: string | number, mid: number): Promise<{kind: 'photo' | 'round'; mime: string; dur: number; b64: string[]} | undefined> {
+  async mediaOf(peerId: string | number, mid: number): Promise<{kind: 'photo' | 'round' | 'video'; mime: string; dur: number; b64: string[]} | undefined> {
     const first = (await this.store.get(mediaKey(peerId, mid, 0)))?.media;
     if(!first) return undefined;
     const b64: string[] = [first.b64];
@@ -223,6 +227,13 @@ export class Archive {
       }
     }
     return n;
+  }
+
+  /** Bitta chatning hamma saqlangan nusxasini (matn, ovoz, rasm, video) mahalliy arxivdan olib tashlaydi. Qaytaradi: o'chirilgan yozuvlar soni. */
+  async purgePeer(peerId: string | number): Promise<number> {
+    const keys = (await this.store.all()).filter((m) => m.peerId === String(peerId)).map((m) => m.k);
+    await this.store.remove(keys);
+    return keys.length;
   }
 
   async deletedMessages(): Promise<ArchivedMessage[]> {
@@ -342,6 +353,13 @@ export class Sync {
 
   async link(code: string) {
     await this.call('POST', '/tb/link', JSON.stringify({code}), {'Content-Type': 'application/json'});
+  }
+
+  /** Serverdagi hamma bo'laklarni tozalaydi (to'plam va obuna ulanishi qoladi): arxivni qayta yozishdan oldin. */
+  async reset() {
+    await this.call('POST', '/tb/reset');
+    this.nextSeq = 0;
+    this.mediaBlocked = false;
   }
 
   async wipe() {

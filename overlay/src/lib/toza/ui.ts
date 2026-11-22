@@ -138,7 +138,7 @@ export function openTozaBackup() {
       ),
       alertRow(),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Matn bepul saqlanadi. Ovozli xabar, rasm va dumaloq video faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
+      note('Matn bepul saqlanadi. Rasm, video va ovozli xabar faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       gapNote(),
@@ -166,6 +166,13 @@ export function openTozaBackup() {
         h('div', {style: 'flex:1;min-width:0'}, h('div', {style: 'font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, titles.get(e.peerId) || e.peerId),
           h('div', {style: 'font-size:12px;opacity:.7'}, `${e.msgs} xabar${e.files ? ` · ${e.files} fayl` : ''} · ${fmtSize(e.bytes)}`))), {role: 'checkbox', tabIndex: 0,
         onclick: () => { on = !on; setChatEnabled(e.peerId, on); paint(); }});
+      const del = Object.assign(h('button', {style: BTN2 + 'padding:4px 10px;font-size:12px;flex:none;'}, 'O\'chirish'), {onclick: async(ev: Event) => {
+        ev.stopPropagation();
+        if(!confirm(`«${titles.get(e.peerId) || e.peerId}» chatining hamma saqlangan nusxasi zaxiradan (shu brauzerdan va serverdan) o'chiriladi. Zaxira qolgan chatlardan qayta yoziladi, bu biroz vaqt olishi mumkin. Davom etasizmi?`)) return;
+        del.disabled = true; del.textContent = '…';
+        try { await purgeChat(e.peerId); item.remove(); } catch(er) { del.disabled = false; del.textContent = 'O\'chirish'; alert(errText(er)); }
+      }});
+      item.append(del);
       list.append(item);
     }
     if(!rows.length) list.append(note('Hozircha saqlangan chat yo\'q.'));
@@ -182,10 +189,10 @@ export function openTozaBackup() {
       const player = voice ? [Object.assign(h('audio', {style: 'width:100%;margin-top:4px;'}), {controls: true, preload: 'none', src: URL.createObjectURL(new Blob([Uint8Array.from(atob(voice.b64), (c) => c.charCodeAt(0))], {type: voice.mime}))})] : [];
       const fileM = await archive.mediaOf(m.peerId, m.mid);
       const toBlob = (parts: string[], mime: string) => URL.createObjectURL(new Blob(parts.map((x) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0))), {type: mime}));
-      const fileEl = fileM ? [fileM.kind === 'photo' ? Object.assign(h('img', {style: 'max-width:100%;border-radius:10px;margin-top:4px;'}), {src: toBlob(fileM.b64, fileM.mime)}) : Object.assign(h('video', {style: 'max-width:240px;width:100%;border-radius:50%;margin-top:4px;aspect-ratio:1/1;object-fit:cover;'}), {controls: true, preload: 'none', src: toBlob(fileM.b64, fileM.mime)})] : [];
+      const fileEl = fileM ? [fileM.kind === 'photo' ? Object.assign(h('img', {style: 'max-width:100%;border-radius:10px;margin-top:4px;'}), {src: toBlob(fileM.b64, fileM.mime)}) : Object.assign(h('video', {style: fileM.kind === 'round' ? 'max-width:240px;width:100%;border-radius:50%;margin-top:4px;aspect-ratio:1/1;object-fit:cover;' : 'max-width:100%;border-radius:10px;margin-top:4px;'}), {controls: true, preload: 'none', src: toBlob(fileM.b64, fileM.mime)})] : [];
       list.append(h('div', {style: 'padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);'},
         h('div', {style: 'font-size:12px;opacity:.7'}, `${titles.get(m.peerId)} · ${fmtDate(m.date)} · o'chirilgan ${fmtDate(m.deleted!)}`),
-        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : fileM ? (fileM.kind === 'photo' ? 'Rasm' : 'Dumaloq video') : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
+        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : fileM ? (fileM.kind === 'photo' ? 'Rasm' : fileM.kind === 'round' ? 'Dumaloq video' : 'Video') : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
         ...player,
         ...fileEl,
         ...(m.edits?.length ? [h('div', {style: 'font-size:12px;opacity:.7'}, `Tahrirlangan (${m.edits.length}): oldingi: ` + m.edits.map((e) => e.text).join(' → '))] : [])));

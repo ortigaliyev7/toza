@@ -40,6 +40,7 @@ function fakeServer({quota = 25 * 1024 * 1024, paid = true} = {}) {
     }
     if(m && init.method === 'GET') return store.has(+m[1]) ? new Response(store.get(+m[1])) : json({error: 'none'}, 404);
     if(u.pathname === '/tb/list') return json({chunks: [...store.entries()].map(([seq, v]) => ({seq, size: v.length, ts: 0})).sort((a, b) => a.seq - b.seq), used: [...store.values()].reduce((a, v) => a + v.length, 0), quota, linked: false, updated: 0});
+    if(u.pathname === '/tb/reset' && init.method === 'POST') { chunks.set(id, new Map()); return json({ok: true}); }
     if(u.pathname === '/tb/link') return JSON.parse(init.body).code === 'GOOD1234' ? json({ok: true}) : json({error: 'bad_code'}, 400);
     if(u.pathname === '/tb' && init.method === 'DELETE') { meta.delete(id); chunks.delete(id); return json({ok: true}); }
     return json({error: 'bad'}, 400);
@@ -253,4 +254,25 @@ test('davomiylik: daqiqa, soat, kun', () => {
   assert.equal(fmtDuration(25 * 60000), '25 daqiqa');
   assert.equal(fmtDuration(150 * 60000), '2 soat 30 daqiqa');
   assert.equal(fmtDuration(120 * 3600000), '5 kun');
+});
+
+test('chatni zaxiradan olib tashlash: mahalliy nusxa o\'chadi, server qolgan chatlardan qayta yoziladi, begona chat saqlanadi', async () => {
+  const code = generateRecoveryCode(), keys = await deriveKeys(code), srv = fakeServer();
+  const store = new MemoryStore(), arc = new Archive(store);
+  const sync = new Sync({baseUrl: 'https://srv.test', keys, store, fetch: srv.fetch});
+  await sync.init();
+  await arc.capture({peerId: 1, mid: 1, date: 1, text: 'birinchi chat maxfiy-1'});
+  await arc.capture({peerId: 2, mid: 1, date: 1, text: 'ikkinchi chat'});
+  await arc.captureVoice({peerId: 1, mid: 1, date: 1}, {mime: 'audio/ogg', dur: 3, b64: Buffer.from(new Uint8Array(500)).toString('base64')});
+  await arc.captureMedia({peerId: 1, mid: 2, date: 1}, 'video', 'video/mp4', 5, new Uint8Array(900_000).fill(3));
+  await sync.flush();
+  assert.equal(await arc.purgePeer(1), 4);                       // 1 matn + 1 ovoz + 2 video bo'lagi
+  await sync.reset(); await store.markAllDirty(); await sync.flush();
+  const B = new Archive(new MemoryStore());
+  await restoreInto(new Sync({baseUrl: 'https://srv.test', keys: await deriveKeys(code), store: B.store, fetch: srv.fetch}), B);
+  const all = await B.store.all();
+  assert.deepEqual(all.map((m) => m.peerId), ['2']);              // faqat ikkinchi chat qoldi
+  assert.ok(!JSON.stringify(all).includes('maxfiy-1'));
+  assert.equal(await B.voiceOf(1, 1), undefined); assert.equal(await B.mediaOf(1, 2), undefined);
+  assert.ok(MEDIA_MAX_BYTES.video > MEDIA_MAX_BYTES.round);
 });

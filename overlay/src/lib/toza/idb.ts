@@ -54,6 +54,16 @@ export class IdbStore implements ArchiveStore {
     return ((await wrap((await this.tx('readonly')).getAll())) as Row[]).map(strip);
   }
 
+  async remove(keys: string[]) {
+    for(const k of keys) await wrap((await this.tx('readwrite')).delete(k));
+  }
+
+  async markAllDirty() {
+    const s = await this.tx('readwrite');
+    const rows = await wrap(s.getAll()) as Row[];
+    for(const r of rows) await wrap(s.put({...r, d: 1}));
+  }
+
   async clear() {
     await wrap((await this.tx('readwrite')).clear());
   }
