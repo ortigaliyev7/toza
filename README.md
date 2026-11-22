@@ -5,6 +5,9 @@ Telegram akkauntini brauzerdan ulaydigan klient. **Premium shart emas**: foydala
 Asos: [morethanwords/tweb](https://github.com/morethanwords/tweb) (Telegram Web K), litsenziya **GPL-3.0** (shu repo ham GPL-3.0, manba ochiq).
 Web K to'liq ko'chirilmaydi: `build.sh` uni aniq versiyada (`TWEB_REF`) yuklaydi, `overlay/` dagi o'zgartirishlarimizni qo'yadi, nomini «Toza» ga almashtiradi va yig'adi.
 
+## Ko'rinish va ishonch
+`brand.mjs` (build vaqtida): Telegram logotipi o'rniga Toza belgisi, «Sign in with Toza», birinchi kirishdan oldin tushuntirish sahifasi (`overlay/toza-intro.html`: nima ulanadi, ma'lumot qayerga ketadi, ochiq kod, ogohlantirish) va asosiy CSS yuklanmasa «Qayta yuklash» oynasi (uslubsiz sahifa o'rniga).
+
 ## Toza zaxirasi (o'chirilgan xabarlarni saqlash va tiklash)
 Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arxivga (IndexedDB) yozadi: yangi, tahrirlangan va o'chirilganlarini. Arxiv **shifrlanib** Sharpa serveriga yuklanadi (nol bilim: shifrlash kaliti serverga berilmaydi). Yangi qurilmada tiklash kodi bilan arxiv tiklanadi.
 - Kod: `overlay/src/lib/toza/` (`core.ts` — kalit/shifrlash/arxiv/sinxronlash, tweb'ga bog'liq emas; `hooks.ts`, `ui.ts`, `idb.ts` — tweb bilan bog'lash). tweb'ga o'zgartirish: `patches/0001-toza-menu.patch`.

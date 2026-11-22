@@ -9,6 +9,7 @@ WORKDIR /w
 COPY build.sh ./
 COPY overlay ./overlay
 COPY patches ./patches
+COPY brand.mjs ./
 RUN chmod +x build.sh && ./build.sh
 
 FROM nginx:1.27-alpine
