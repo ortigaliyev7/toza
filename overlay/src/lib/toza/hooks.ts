@@ -1,9 +1,10 @@
 import rootScope from '@lib/rootScope';
 import appDownloadManager from '@lib/appDownloadManager';
 import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
-import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, voiceKey, mediaKey, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
+import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, keyOf, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
 import type {Incoming, SyncStatus} from './core';
 import {IdbStore} from './idb';
+import {alertsOn, pushAlert, setAlertOpener} from './alerts';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -107,11 +108,32 @@ async function captureMedia(m: any, inc: Incoming) {
   } catch{ mediaTried.delete(k); /* keyingi safar qayta uriniladi */ }
 }
 
-async function capture(m: any) {
+const canAlert = () => paid && alertsOn() && isEnabled();
+
+async function capture(m: any, announce = false) {
   const inc = toIncoming(m);
   if(!inc || !chatEnabled(inc.peerId)) return;
-  if(inc.text || inc.kind) await archive.capture(inc).catch(() => undefined);
+  const before = announce && canAlert() && !inc.out ? (await store.get(keyOf(inc.peerId, inc.mid)))?.text : undefined;
+  let st: string | void = undefined;
+  if(inc.text || inc.kind) st = await archive.capture(inc).catch(() => undefined);
+  if(st === 'edited' && before !== undefined && before !== inc.text) peerTitle(inc.peerId).then((who) => pushAlert({kind: 'edited', who, text: inc.text, old: before}));
   if(isEnabled()) captureMedia(m, inc);
+}
+
+/** O'chirilgan (boshqalarning) xabarlari: arxivdagi matn bilan xabar beramiz, so'ng «o'chirilgan» deb belgilaymiz. */
+async function onDeleted(peerId: string, mids: Iterable<number>) {
+  const list = [...mids];
+  if(chatEnabled(peerId) && canAlert()) {
+    const who = await peerTitle(peerId);
+    for(const mid of list) {
+      const rec = await store.get(keyOf(peerId, mid));
+      if(rec && !rec.deleted && !rec.out) {
+        const voice = await archive.voiceOf(peerId, mid), file = await archive.mediaOf(peerId, mid);
+        pushAlert({kind: 'deleted', who, text: rec.text || (voice ? 'ovozli xabar' : file ? (file.kind === 'photo' ? 'rasm' : 'dumaloq video') : rec.kind ? rec.kind.replace('messageMedia', '').toLowerCase() : '')});
+      }
+    }
+  }
+  await archive.deleted(peerId, list);
 }
 
 async function makeSync(code: string) {
@@ -163,8 +185,9 @@ export function startTozaBackup() {
   const on = (fn: (...a: any[]) => any) => (...a: any[]) => { if(isEnabled()) fn(...a); };
   rootScope.addEventListener('history_append', on(({message}: any) => capture(message)));
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
-  rootScope.addEventListener('message_edit', on(({message}: any) => capture(message)));
-  rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => archive.deleted(String(peerId), msgs)));
+  rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
+  rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));
+  setAlertOpener(() => { import('./ui').then((m) => m.openTozaBackup()); });
   observeBubbles();
   rootScope.addEventListener('logging_out', () => { reportStatus(false); });
   reportStatus(true);

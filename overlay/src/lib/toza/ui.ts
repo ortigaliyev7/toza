@@ -1,3 +1,4 @@
+import {alertsOn, setAlertsOn} from './alerts';
 import {archive, chatEnabled, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
@@ -93,6 +94,17 @@ export function openTozaBackup() {
     );
   }
 
+  function alertRow() {
+    let on = alertsOn();
+    const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+    const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--primary-color,#3390ec)' : 'transparent'; };
+    paint();
+    const label = h('div', {}, h('div', {style: 'font-weight:600'}, 'Tahrirlangan va o\'chirilgan xabarlar haqida xabar berish'),
+      h('div', {style: 'font-size:12px;opacity:.7'}, isPaid() ? 'Toza ochiq turganda ekranda (va ruxsat bersangiz tizim bildirishnomasi bilan) darrov ko\'rsatiladi. Toza yopiq bo\'lsa ishlamaydi.' : 'Sharpa obunasi bilan ishlaydi. Obuna ulangach o\'zi yoqiladi.'));
+    return Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);cursor:pointer;user-select:none;'}, box, label), {role: 'checkbox', tabIndex: 0,
+      onclick: () => { on = !on; setAlertsOn(on); paint(); if(on && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().catch(() => undefined); }});
+  }
+
   async function viewOn() {
     if(!isEnabled()) return viewOff();
     const info = h('div', {}, 'Yuklanmoqda…');
@@ -114,6 +126,7 @@ export function openTozaBackup() {
         btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true),
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
+      alertRow(),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
       note('Matn bepul saqlanadi. Ovozli xabar, rasm va dumaloq video faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),

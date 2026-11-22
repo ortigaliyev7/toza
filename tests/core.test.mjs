@@ -239,3 +239,11 @@ test('zaxira: bepul akkauntda fayllar yuborilmaydi (matn ketadi); obunada rasm s
   assert.ok(Buffer.concat(got.b64.map((x) => Buffer.from(x, 'base64'))).equals(Buffer.from(bytes)));
   for(const body of paid.srv.seen) assert.ok(body.length < 1_600_000);   // bitta bo'lak 4 MB dan oshmaydi
 });
+
+import {describe as describeAlert} from '../overlay/src/lib/toza/alerts.ts';
+test('xabar matni: o\'chirilgan va tahrirlangan, uzun matn qisqartiriladi', () => {
+  assert.equal(describeAlert({kind: 'deleted', who: 'Ali', text: 'salom'}), "O'chirdi: «salom»");
+  assert.equal(describeAlert({kind: 'edited', who: 'Ali', old: 'eski', text: 'yangi'}), "Tahrirladi: «eski» → «yangi»");
+  const long = describeAlert({kind: 'deleted', who: 'Ali', text: 'x'.repeat(500)});
+  assert.ok(long.length < 130 && long.includes('…'));
+});
