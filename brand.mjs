@@ -24,3 +24,9 @@ write('index.html', html);
 let lang = read('src/langSign.ts');
 must(lang.includes("'Login.Title': 'Sign in to Telegram'"), 'Login.Title');
 write('src/langSign.ts', lang.replace("'Login.Title': 'Sign in to Telegram'", "'Login.Title': 'Sign in with Toza'"));
+
+// 4) Kirish kartasidagi belgi: tayyor rasm (assets/img/logo_512.png)
+let card = read('src/pages/cards/SignInCard.tsx');
+const OLD = /<svg class=\{styles\.logo\}[^>]*>\s*<use href="#logo"\/>\s*<\/svg>/;
+must(OLD.test(card), 'SignInCard logo');
+write('src/pages/cards/SignInCard.tsx', card.replace(OLD, '<img class={styles.logo} src="assets/img/logo_512.png" alt="Toza" width="120" height="120" />'));
