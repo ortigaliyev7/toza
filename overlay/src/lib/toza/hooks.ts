@@ -1,5 +1,6 @@
 import rootScope from '@lib/rootScope';
-import {Archive, Sync, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
+import appDownloadManager from '@lib/appDownloadManager';
+import {Archive, Sync, VOICE_MAX_BYTES, isVoiceKey, voiceKey, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
 import type {Incoming, SyncStatus} from './core';
 import {IdbStore} from './idb';
 
@@ -46,9 +47,34 @@ function toIncoming(m: any): Incoming | null {
   return {peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.fromId !== undefined ? String(m.fromId) : undefined, out: !!m.pFlags?.out, text: m.message || '', kind: m.media?._};
 }
 
+const voiceTried = new Set<string>();
+const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1] || '');
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(blob);
+});
+
+/** Ovozli xabar (kichik): yuklab olib, shifrlanadigan arxivga qo'shamiz. Xato bo'lsa xabar matni baribir saqlanadi. */
+async function captureVoice(m: any, inc: Incoming) {
+  const doc = m?.media?.document;
+  if(m?.media?._ !== 'messageMediaDocument' || !doc || doc.type !== 'voice') return;
+  if(Number(doc.size) > VOICE_MAX_BYTES) return;
+  const k = voiceKey(inc.peerId, inc.mid);
+  if(voiceTried.has(k)) return;
+  voiceTried.add(k);
+  try {
+    if(await archive.voiceOf(inc.peerId, inc.mid)) return;
+    const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
+    if(!blob || blob.size > VOICE_MAX_BYTES) return;
+    await archive.captureVoice(inc, {mime: doc.mime_type || blob.type || 'audio/ogg', dur: Number(doc.duration) || 0, b64: await toB64(blob)});
+  } catch{ voiceTried.delete(k); /* keyingi safar qayta uriniladi */ }
+}
+
 async function capture(m: any) {
   const inc = toIncoming(m);
   if(inc && (inc.text || inc.kind)) await archive.capture(inc).catch(() => undefined);
+  if(inc && isEnabled()) captureVoice(m, inc);
 }
 
 async function makeSync(code: string) {
@@ -162,7 +188,8 @@ export async function linkSharpa(code: string) {
 
 export async function counts() {
   const all = await store.all();
-  return {total: all.length, deleted: all.filter((m) => m.deleted).length, pending: (await store.dirty(100000)).length};
+  const msgs = all.filter((m) => !isVoiceKey(m.k));
+  return {total: msgs.length, voices: all.length - msgs.length, deleted: msgs.filter((m) => m.deleted).length, pending: (await store.dirty(100000)).length};
 }
 
 export async function peerTitle(peerId: string): Promise<string> {

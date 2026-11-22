@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  Archive, MemoryStore, Sync, TozaApiError, decryptChunk, deriveKeys, encryptChunk, formatCode, generateRecoveryCode, keyOf, mergeMessage, normalizeCode, restoreInto
+  Archive, MemoryStore, VOICE_MAX_BYTES, voiceKey, isVoiceKey, Sync, TozaApiError, decryptChunk, deriveKeys, encryptChunk, formatCode, generateRecoveryCode, keyOf, mergeMessage, normalizeCode, restoreInto
 } from '../overlay/src/lib/toza/core.ts';
 
 const te = new TextEncoder();
@@ -158,3 +158,38 @@ test('xatolar: begona kod, bo\'lmagan zaxira, hajm, bog\'lash, o\'chirish', asyn
 });
 
 test('formatCode', () => assert.equal(formatCode('ABCDEFGHIJ'), 'ABCD-EFGH-IJ'));
+
+test('ovozli xabar: bir marta saqlanadi, o\'chirilgan ro\'yxatni to\'ldirmaydi, katta ovoz rad etiladi', async () => {
+  const store = new MemoryStore(), arc = new Archive(store);
+  const b64 = Buffer.from(new Uint8Array(40_000).fill(7)).toString('base64');
+  await arc.capture({peerId: 5, mid: 9, date: 1, text: '', kind: 'messageMediaDocument'});
+  assert.equal(await arc.captureVoice({peerId: 5, mid: 9, date: 1}, {mime: 'audio/ogg', dur: 12, b64}), true);
+  assert.equal(await arc.captureVoice({peerId: 5, mid: 9, date: 1}, {mime: 'audio/ogg', dur: 12, b64}), false); // qayta yozilmaydi
+  assert.equal((await arc.voiceOf(5, 9)).dur, 12);
+  assert.equal(await arc.voiceOf(5, 10), undefined);
+  assert.equal(await arc.captureVoice({peerId: 5, mid: 11, date: 1}, {mime: 'audio/ogg', dur: 1, b64: 'A'.repeat(Math.ceil((VOICE_MAX_BYTES + 10) * 4 / 3))}), false); // katta
+  await arc.deleted(5, [9]);                                   // xabar o'chirildi: faqat xabar yozuvi belgilanadi
+  const del = await arc.deletedMessages();
+  assert.equal(del.length, 1); assert.equal(del[0].k, '5:9'); assert.ok(isVoiceKey(voiceKey(5, 9)));
+  assert.ok((await arc.voiceOf(5, 9)).b64 === b64);           // ovoz saqlanib qoladi
+});
+
+test('ovozli xabar: shifrlangan zaxiraga chiqadi va yangi qurilmada tiklanadi; o\'chirilgandan keyin qayta yuklanmaydi', async () => {
+  const code = generateRecoveryCode(), srv = fakeServer(), keys = await deriveKeys(code);
+  const storeA = new MemoryStore(), arcA = new Archive(storeA);
+  const b64 = Buffer.from(new Uint8Array(300_000).map((_, i) => (i * 31) % 251)).toString('base64');
+  await arcA.capture({peerId: 1, mid: 3, date: 1, text: '', kind: 'messageMediaDocument'});
+  await arcA.captureVoice({peerId: 1, mid: 3, date: 1}, {mime: 'audio/ogg', dur: 20, b64});
+  const syncA = new Sync({baseUrl: 'https://srv.test', keys, store: storeA, fetch: srv.fetch});
+  await syncA.init();
+  await syncA.flush();
+  const sent = srv.seen.length;
+  await arcA.deleted(1, [3]);                                  // o'chirildi: faqat kichik xabar yozuvi qayta yuklanadi
+  await syncA.flush();
+  assert.ok(srv.seen.slice(sent).every((x) => x.length < 2000), 'ovoz qayta yuklanmasligi kerak');
+  for(const body of srv.seen) assert.ok(!td.decode(body).includes(b64.slice(0, 40)));      // serverda ochiq ovoz yo'q
+  const storeB = new MemoryStore(), arcB = new Archive(storeB);
+  const res = await restoreInto(new Sync({baseUrl: 'https://srv.test', keys: await deriveKeys(code), store: storeB, fetch: srv.fetch}), arcB);
+  assert.equal(res.deleted, 1);
+  assert.equal((await arcB.voiceOf(1, 3)).b64, b64);
+});

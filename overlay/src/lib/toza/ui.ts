@@ -103,7 +103,7 @@ export function openTozaBackup() {
       const c = await counts();
       let srv = '';
       try { const s = await serverStatus(); if(s) srv = ` · Serverda: ${fmtSize(s.used)} / ${fmtSize(s.quota)}${s.linked ? ' (obuna ulangan)' : ''}`; } catch(e) { srv = ' · Server: ' + errText(e); }
-      info.textContent = `Saqlangan: ${c.total} ta xabar · O'chirilgan: ${c.deleted} · Yuklanmagan: ${c.pending}${srv}` + (state.lastError ? ` · Oxirgi xato: ${state.lastError}` : '');
+      info.textContent = `Saqlangan: ${c.total} ta xabar · Ovozli: ${c.voices} · O'chirilgan: ${c.deleted} · Yuklanmagan: ${c.pending}${srv}` + (state.lastError ? ` · Oxirgi xato: ${state.lastError}` : '');
     };
     show(
       title('Toza zaxirasi: yoqilgan'),
@@ -134,9 +134,12 @@ export function openTozaBackup() {
     const titles = new Map<string, string>();
     for(const m of items.slice(0, 200)) {
       if(!titles.has(m.peerId)) titles.set(m.peerId, await peerTitle(m.peerId));
+      const voice = await archive.voiceOf(m.peerId, m.mid);
+      const player = voice ? [Object.assign(h('audio', {style: 'width:100%;margin-top:4px;'}), {controls: true, preload: 'none', src: URL.createObjectURL(new Blob([Uint8Array.from(atob(voice.b64), (c) => c.charCodeAt(0))], {type: voice.mime}))})] : [];
       list.append(h('div', {style: 'padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);'},
         h('div', {style: 'font-size:12px;opacity:.7'}, `${titles.get(m.peerId)} · ${fmtDate(m.date)} · o'chirilgan ${fmtDate(m.deleted!)}`),
-        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
+        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
+        ...player,
         ...(m.edits?.length ? [h('div', {style: 'font-size:12px;opacity:.7'}, `Tahrirlangan (${m.edits.length}): oldingi: ` + m.edits.map((e) => e.text).join(' → '))] : [])));
     }
   }

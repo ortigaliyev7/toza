@@ -96,10 +96,15 @@ export type ArchivedMessage = {
   kind?: string;                   // media turi (matnsiz xabar uchun)
   edits?: {t: number; text: string}[]; // oldingi versiyalar
   deleted?: number;                // o'chirilgan vaqt (sekund)
+  voice?: {mime: string; dur: number; b64: string}; // ovozli xabar (faqat `v:` yozuvlarida): kichik, bir marta yuklanadi
   u: number;                       // oxirgi o'zgarish vaqti (ms) — birlashtirishda yangisi yutadi
 };
 
 export const keyOf = (peerId: string | number, mid: number) => `${peerId}:${mid}`;
+/** Ovozli xabar alohida yozuvda (`v:<peer>:<mid>`): xabar keyin o'chirilsa/tahrirlansa ovoz qayta yuklanmaydi (hajm oshmaydi). */
+export const voiceKey = (peerId: string | number, mid: number) => `v:${keyOf(peerId, mid)}`;
+export const isVoiceKey = (k: string) => k.startsWith('v:');
+export const VOICE_MAX_BYTES = 1_000_000;         // bundan katta ovoz saqlanmaydi (taxminan 2-3 daqiqa)
 
 export interface ArchiveStore {
   get(k: string): Promise<ArchivedMessage | undefined>;
@@ -154,6 +159,19 @@ export class Archive {
     return 'edited';
   }
 
+  /** Ovozli xabarni saqlaydi (bir marta). Katta bo'lsa yoki allaqachon bor bo'lsa — saqlamaydi. Qaytaradi: saqlandimi. */
+  async captureVoice(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, voice: {mime: string; dur: number; b64: string}): Promise<boolean> {
+    if(!voice.b64 || Math.floor(voice.b64.length * 3 / 4) > VOICE_MAX_BYTES) return false;
+    const k = voiceKey(m.peerId, m.mid);
+    if(await this.store.get(k)) return false;
+    await this.store.put({k, peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: '', kind: 'voice-blob', voice, u: this.now()}, true);
+    return true;
+  }
+
+  async voiceOf(peerId: string | number, mid: number) {
+    return (await this.store.get(voiceKey(peerId, mid)))?.voice;
+  }
+
   /** Telegram'da o'chirildi: bizda nusxasi bo'lsa — «o'chirilgan» deb belgilanadi (matn saqlanadi). Qaytaradi: belgilanganlar soni. */
   async deleted(peerId: string | number, mids: Iterable<number>): Promise<number> {
     let n = 0;
@@ -169,7 +187,7 @@ export class Archive {
   }
 
   async deletedMessages(): Promise<ArchivedMessage[]> {
-    return (await this.store.all()).filter((x) => x.deleted).sort((x, y) => y.deleted! - x.deleted!);
+    return (await this.store.all()).filter((x) => x.deleted && !isVoiceKey(x.k)).sort((x, y) => y.deleted! - x.deleted!);
   }
 
   /** Tiklangan nusxalarni mahalliy arxivga qo'shadi (birlashtirib). Qaytaradi: yangi yoki o'zgargan yozuvlar soni. */
