@@ -52,5 +52,17 @@
       if (did) clearInterval(t);
     }
   }, 1000);
+  // Sharpa bilan sinxronlik: kirish sahifasi ko'rinib tursa (akkaunt ulanmagan/chiqilgan/xotira tozalangan) Sharpa'ga «ulanmagan» deb xabar qilamiz,
+  // aks holda Sharpa eski «ulangan» holatni ko'rsatib turardi. «Ulangan» + zaxira holatini asosiy kod (hooks.ts) o'zi yuboradi.
+  if (embedded) {
+    var origin = ''; try { origin = new URL(document.referrer).origin; } catch (e) { /* referrer yo'q */ }
+    var lastOut = false;
+    if (origin) setInterval(function () {
+      var a = document.getElementById('auth-pages'), c = document.getElementById('page-chats');
+      var out = !!a && getComputedStyle(a).display !== 'none' && (!c || getComputedStyle(c).display === 'none');
+      if (out && !lastOut) { try { window.parent.postMessage({t: 'toza', v: 1, connected: false, name: '', backup: false}, origin); } catch (e) { /* ... */ } }
+      lastOut = out;
+    }, 1500);
+  }
 }());
 </script>
