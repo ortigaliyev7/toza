@@ -114,7 +114,7 @@ export function openTozaBackup() {
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Obuna bo\'lsa zaxira hajmi 25 MB dan 1 GB gacha oshadi. Sharpa botida /zaxira yozing va kodni kiriting.'),
+      note('Obuna bo\'lsa zaxira hajmi 100 MB dan 1 GB gacha oshadi. Sharpa botida /zaxira yozing va kodni kiriting.'),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       list,
