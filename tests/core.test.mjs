@@ -41,6 +41,7 @@ function fakeServer({quota = 25 * 1024 * 1024, paid = true} = {}) {
     if(m && init.method === 'GET') return store.has(+m[1]) ? new Response(store.get(+m[1])) : json({error: 'none'}, 404);
     if(u.pathname === '/tb/list') return json({chunks: [...store.entries()].map(([seq, v]) => ({seq, size: v.length, ts: 0})).sort((a, b) => a.seq - b.seq), used: [...store.values()].reduce((a, v) => a + v.length, 0), quota, linked: false, updated: 0});
     if(u.pathname === '/tb/reset' && init.method === 'POST') { chunks.set(id, new Map()); return json({ok: true}); }
+    if(u.pathname === '/tb/device' && init.method === 'POST') return json({k: 'dev-token-123', url: 'https://sharpa.test/v2/'});
     if(u.pathname === '/tb/link') return JSON.parse(init.body).code === 'GOOD1234' ? json({ok: true}) : json({error: 'bad_code'}, 400);
     if(u.pathname === '/tb' && init.method === 'DELETE') { meta.delete(id); chunks.delete(id); return json({ok: true}); }
     return json({error: 'bad'}, 400);
@@ -327,4 +328,11 @@ test('shablon: sarlavha, uzunlik cheklovi', () => {
   const t = newTemplate('', '  Rahmat, tez orada javob beraman  ', 'x1');
   assert.deepEqual(t, {id: 'x1', title: 'Rahmat, tez orada javob berama', text: 'Rahmat, tez orada javob beraman'});
   assert.equal(newTemplate('a'.repeat(100), 'b'.repeat(5000)).text.length, 2000);
+});
+
+test('Sharpa bo\'limlari: qurilma tokeni olinadi', async () => {
+  const keys = await deriveKeys(generateRecoveryCode()), srv = fakeServer();
+  const sync = new Sync({baseUrl: 'https://srv.test', keys, store: new MemoryStore(), fetch: srv.fetch});
+  await sync.init();
+  assert.deepEqual(await sync.device(), {k: 'dev-token-123', url: 'https://sharpa.test/v2/'});
 });

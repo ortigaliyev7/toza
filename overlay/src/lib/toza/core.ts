@@ -355,6 +355,11 @@ export class Sync {
     await this.call('POST', '/tb/link', JSON.stringify({code}), {'Content-Type': 'application/json'});
   }
 
+  /** Sharpa bo'limlari (Bozor, Profil) uchun qurilma tokeni: to'plam Sharpa akkauntiga ulangan bo'lishi shart (`not_linked`). */
+  async device(): Promise<{k: string; url: string}> {
+    return (await this.call('POST', '/tb/device')).json();
+  }
+
   /** Serverdagi hamma bo'laklarni tozalaydi (to'plam va obuna ulanishi qoladi): arxivni qayta yozishdan oldin. */
   async reset() {
     await this.call('POST', '/tb/reset');

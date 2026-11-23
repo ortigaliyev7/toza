@@ -286,6 +286,7 @@ export async function disableBackup(wipeServer: boolean) {
   if(wipeServer && sync) await sync.wipe();
   localStorage.removeItem(LS_ON);
   localStorage.removeItem(LS_CODE);
+  localStorage.removeItem(LS_SHARPA);
   sync = null;
   await store.clear();
   reportStatus(true);
@@ -324,6 +325,17 @@ export async function purgeChat(peerId: string): Promise<void> {
   await store.markAllDirty();
   await flushNow();
 }
+
+// ---- Sharpa bo'limlari (Bozor, Profil): Sharpa Mini App Toza ichida ochiladi. Kirish uchun Sharpa qurilma tokeni kerak (bir marta olinadi va shu brauzerda saqlanadi).
+const LS_SHARPA = 'toza_sharpa';
+export async function sharpaAccess(force = false): Promise<{k: string; url: string}> {
+  if(!force) { try { const c = JSON.parse(localStorage.getItem(LS_SHARPA) || 'null'); if(c?.k && c?.url) return c; } catch{ /* yo'q */ } }
+  if(!sync) throw new Error('off');
+  const d = await sync.device();
+  localStorage.setItem(LS_SHARPA, JSON.stringify(d));
+  return d;
+}
+export const forgetSharpa = () => localStorage.removeItem(LS_SHARPA);
 
 export async function counts() {
   const all = await store.all();
