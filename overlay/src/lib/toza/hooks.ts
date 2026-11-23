@@ -259,6 +259,7 @@ export function startTozaBackup() {
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));
+  applyProfileTheme();
   if(isEnabled()) checkGap();
   window.setInterval(() => { if(isEnabled()) markSeen(); }, 30000);
   window.addEventListener('pagehide', markSeen);
@@ -354,37 +355,18 @@ export async function purgeChat(peerId: string): Promise<void> {
   await flushNow();
 }
 
-// ---- Sharpa bo'limlari (Bozor, Profil): Sharpa Mini App Toza ichida ochiladi. Zaxira KERAK EMAS.
-// Kirish: Toza Telegram'dagi o'z foydalanuvchingiz nomidan Sharpa botiga bir martalik `/start toza_<kod>` yuboradi; bot haqiqiy jo'natuvchini ko'radi
-// va kodni shu ID ga bog'laydi; Toza kodni so'rab turib qurilma tokenini oladi (shu brauzerda saqlanadi). Telegram sessiyangiz Sharpa'ga berilmaydi.
-const LS_SHARPA = 'toza_sharpa';
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function tbPost(path: string, body?: any): Promise<Response> {
-  const base = serverUrl();
-  if(!base) throw new Error('no_server');
-  return fetch(base + path, {method: 'POST', headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
+// ---- Toza profili: shaxsiy status, emoji va rang mavzusi (faqat shu brauzerda saqlanadi)
+export type TozaProfile = {status: string; emoji: string; accent: string};
+const LS_PROFILE = 'toza_profile';
+export const getProfile = (): TozaProfile => { try { return {status: '', emoji: '', accent: '', ...JSON.parse(localStorage.getItem(LS_PROFILE) || '{}')}; } catch{ return {status: '', emoji: '', accent: ''}; } };
+export function setProfile(p: TozaProfile) {
+  localStorage.setItem(LS_PROFILE, JSON.stringify({status: p.status.slice(0, 70), emoji: p.emoji.slice(0, 4), accent: /^#[0-9a-f]{6}$/i.test(p.accent) ? p.accent : ''}));
+  applyProfileTheme();
 }
-export async function sharpaAccess(force = false): Promise<{k: string; url: string}> {
-  if(!force) { try { const c = JSON.parse(localStorage.getItem(LS_SHARPA) || 'null'); if(c?.k && c?.url) return c; } catch{ /* yo'q */ } }
-  const nr = await tbPost('/tb/nonce');
-  if(!nr.ok) throw new TozaApiError(nr.status, 'error');
-  const {nonce, bot} = await nr.json();
-  const managers = (rootScope as any).managers;
-  const peer = await managers.appUsersManager.resolveUsername(String(bot));
-  if(!peer) throw new Error('no_bot');
-  await managers.appMessagesManager.sendText({peerId: Number(peer.id), text: `/start toza_${nonce}`});
-  for(let i = 0; i < 24; i++) {                              // ~36 soniya
-    await sleep(1500);
-    const r = await tbPost('/tb/login', {nonce});
-    if(r.status === 202) continue;
-    if(!r.ok) throw new TozaApiError(r.status, (await r.json().catch(() => ({})))?.error || 'error');
-    const d = await r.json();
-    localStorage.setItem(LS_SHARPA, JSON.stringify(d));
-    return d;
-  }
-  throw new Error('bot_timeout');
+export function applyProfileTheme() {
+  const a = getProfile().accent, st = document.documentElement.style;
+  if(a) { st.setProperty('--primary-color', a); st.setProperty('--link-color', a); } else { st.removeProperty('--primary-color'); st.removeProperty('--link-color'); }
 }
-export const forgetSharpa = () => localStorage.removeItem(LS_SHARPA);
 
 export async function counts() {
   const all = await store.all();

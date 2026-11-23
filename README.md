@@ -44,3 +44,6 @@ Hammasi **brauzer ichida** ishlaydi, xabar matni serverga yuborilmaydi (zaxira n
 - **Chatda o'chirilgan xabarlar o'z joyida** (`ghost.ts`): bubblelar orasiga «ko'lanka» blok (matn, ovoz/rasm/video, oldingi tahrirlar) qo'yiladi; qo'shimcha: ochiq chatda «O'chirilgan: N» belgisi (bosilsa shu chatning ro'yxati).
 
 Qoidalar: tweb GPL-3.0 (kod ochiq qoladi), Telegram brendi/logotipidan foydalanilmaydi, spam/avtomatlashtirilgan suiiste'mol yo'q, tweb pin qilingan commit'da, o'zgartirishlar kichik (`overlay/` + `patches/`). Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.
+
+## Toza profilim
+Chap menyu → **Toza profilim**: Toza holati (zaxira, PIN qulf, xabar berish, hajm), shaxsiy status/belgi/rang mavzusi (faqat shu brauzerda), chatlar boshqaruvi va xavfsizlik tarixi. Sharpa bilan bog'liq emas.

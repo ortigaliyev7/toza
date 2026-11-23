@@ -29,7 +29,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
 const BTN = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--primary-color,#3390ec);color:#fff;';
 const BTN2 = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:rgba(127,127,127,.18);color:inherit;';
 
-export function openTozaBackup(jump?: {peerId: string}) {
+export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'history') {
   startTozaBackup();
   const back = h('div', {style: 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px;'});
   const panel = h('div', {style: 'background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border-radius:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px;line-height:1.4;'});
@@ -211,7 +211,12 @@ export function openTozaBackup(jump?: {peerId: string}) {
     }
   }
 
-  if(jump) viewSearch(ctx, jump.peerId, true);
+  const sub = (t: string, ...k: Node[]) => show(title(t), ...k, row(btn('Orqaga', () => viewOn(), true)));
+  if(view && isEnabled()) {
+    const list = h('div');
+    if(view === 'chats') { sub('Chatlar boshqaruvi', list); showChats(list); }
+    else { sub('Xavfsizlik tarixi', alertRow(), gapNote(), list); showDeleted(list); }
+  } else if(jump) viewSearch(ctx, jump.peerId, true);
   else (isEnabled() ? viewOn : viewOff)();
 }
 

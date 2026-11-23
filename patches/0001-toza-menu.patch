@@ -10,7 +10,7 @@ index 6c7c795..afd80eb 100644
  import {createSearchGroup, getSearchTransitionDuration, SearchGroup} from '@components/searchGroup';
  import crossfadeContent, {CROSS_FADE_KEYFRAMES, getAnimatedOptions} from '@helpers/dom/crossfadeContent';
  import DialogsContextMenu from '@components/dialogsContextMenu';
-@@ -802,6 +803,30 @@ export class AppSidebarLeft extends SidebarSlider {
+@@ -802,6 +803,22 @@ export class AppSidebarLeft extends SidebarSlider {
          });
        },
        verify: () => IS_CALL_SUPPORTED || IS_CONFERENCE_CALL_SUPPORTED
@@ -23,25 +23,17 @@ index 6c7c795..afd80eb 100644
 +        });
 +      }
 +    }, {
-+      icon: 'gift',
-+      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Sharpa: Bozor'; return s; })(),
-+      onClick: () => {
-+        closeTabsBefore(() => {
-+          import('@lib/toza/sharpa').then((m) => m.openSharpa('bozor'));
-+        });
-+      }
-+    }, {
 +      icon: 'user',
-+      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Sharpa: Profil'; return s; })(),
++      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Toza profilim'; return s; })(),
 +      onClick: () => {
 +        closeTabsBefore(() => {
-+          import('@lib/toza/sharpa').then((m) => m.openSharpa('profil'));
++          import('@lib/toza/profile').then((m) => m.openTozaProfile());
 +        });
 +      }
      }, {
        id: 'settings',
        icon: 'settings',
-@@ -814,6 +839,7 @@ export class AppSidebarLeft extends SidebarSlider {
+@@ -814,6 +831,7 @@ export class AppSidebarLeft extends SidebarSlider {
        }
      }, moreSubmenu];
  
