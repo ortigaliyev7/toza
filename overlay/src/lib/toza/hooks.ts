@@ -78,7 +78,7 @@ export function setChatEnabled(peerId: string | number, on: boolean) {
 let paid = false;
 export const isPaid = () => paid;
 export async function refreshPaid() {
-  try { paid = !!(sync && (await sync.status()).paid); } catch{ /* tarmoq yo'q: oldingi qiymat qoladi */ }
+  try { const sy = await ensureSync(); paid = !!(sy && (await sy.status()).paid); } catch{ /* tarmoq yo'q: oldingi qiymat qoladi */ }
   return paid;
 }
 
@@ -168,6 +168,15 @@ async function onDeleted(peerId: string, mids: Iterable<number>) {
   scheduleGhosts(900);                                      // tweb bubbleni olib tashlab bo'lgach
 }
 
+/** Sinxronlash obyekti hali yaratilmagan bo'lsa (sahifa endi ochilgan, avvalgi urinish xato bergan) — yoqilgan zaxira uchun yaratadi. «O'chiq» deb adashmaslik uchun. */
+let syncPromise: Promise<Sync | null> | null = null;
+async function ensureSync(): Promise<Sync | null> {
+  if(sync) return sync;
+  if(!isEnabled()) return null;
+  syncPromise ||= makeSync(savedCode()).then((x) => { sync = x; return x; }).catch(() => null).finally(() => { syncPromise = null; });
+  return syncPromise;
+}
+
 async function makeSync(code: string) {
   const url = serverUrl();
   if(!url) throw new Error('no_server');
@@ -175,9 +184,10 @@ async function makeSync(code: string) {
 }
 
 export async function flushNow(): Promise<number> {
-  if(!sync) return 0;
+  const sy = await ensureSync();
+  if(!sy) return 0;
   try {
-    const n = await sync.flush();
+    const n = await sy.flush();
     state.lastError = '';
     if(n) state.lastFlush = Date.now();
     return n;
@@ -259,7 +269,8 @@ export function startTozaBackup() {
   // Sharpa «Zaxirani yoqish» bosilganda (?zaxira=1): kirgandan keyin zaxira oynasini o'zi ochamiz
   if(!isEnabled() && /[?&]zaxira=1/.test(location.search)) setTimeout(() => { import('./ui').then((m) => m.openTozaBackup()); }, 1200);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) { lastStatus = ''; reportStatus(true); } });
-  if(isEnabled()) makeSync(savedCode()).then((s) => { sync = s; return refreshPaid(); }).catch(() => undefined);
+  if(isEnabled()) ensureSync().then(() => refreshPaid());
+  try { navigator.storage?.persist?.(); } catch{ /* ruxsat yo'q */ }          // brauzer joy tanqisligida Toza ma'lumotini (zaxira kaliti) o'chirib yubormasin
   window.setInterval(() => { if(isEnabled()) refreshPaid(); }, 10 * 60 * 1000);
   timer = window.setInterval(() => { if(isEnabled()) flushNow().catch(() => undefined); }, FLUSH_MS);
   document.addEventListener('visibilitychange', () => { if(document.hidden && isEnabled()) flushNow().catch(() => undefined); });
@@ -296,7 +307,8 @@ export async function restoreBackup(code: string): Promise<{messages: number; de
 }
 
 export async function disableBackup(wipeServer: boolean) {
-  if(wipeServer && sync) await sync.wipe();
+  const sy = await ensureSync();
+  if(wipeServer && sy) await sy.wipe();
   localStorage.removeItem(LS_ON);
   localStorage.removeItem(LS_CODE);
   localStorage.removeItem(LS_SHARPA);
@@ -306,12 +318,14 @@ export async function disableBackup(wipeServer: boolean) {
 }
 
 export async function serverStatus(): Promise<SyncStatus | null> {
-  return sync ? sync.status() : null;
+  const sy = await ensureSync();
+  return sy ? sy.status() : null;
 }
 
 export async function linkSharpa(code: string) {
-  if(!sync) throw new Error('off');
-  await sync.link(code.trim().toUpperCase());
+  const sy = await ensureSync();
+  if(!sy) throw new Error('off');
+  await sy.link(code.trim().toUpperCase());
   await refreshPaid();
 }
 
@@ -331,10 +345,11 @@ export async function chatUsage(): Promise<{peerId: string; msgs: number; files:
 
 /** Chatni zaxiradan butunlay olib tashlaydi: saqlash o'chadi, mahalliy nusxa o'chadi, serverdagi zaxira qolgan chatlardan qayta yoziladi. */
 export async function purgeChat(peerId: string): Promise<void> {
-  if(!sync) throw new Error('off');
+  const sy = await ensureSync();
+  if(!sy) throw new Error('off');
   setChatEnabled(peerId, false);
   await archive.purgePeer(peerId);
-  await sync.reset();
+  await sy.reset();
   await store.markAllDirty();
   await flushNow();
 }
@@ -343,8 +358,9 @@ export async function purgeChat(peerId: string): Promise<void> {
 const LS_SHARPA = 'toza_sharpa';
 export async function sharpaAccess(force = false): Promise<{k: string; url: string}> {
   if(!force) { try { const c = JSON.parse(localStorage.getItem(LS_SHARPA) || 'null'); if(c?.k && c?.url) return c; } catch{ /* yo'q */ } }
-  if(!sync) throw new Error('off');
-  const d = await sync.device();
+  const sy = await ensureSync();
+  if(!sy) throw new Error('off');
+  const d = await sy.device();
   localStorage.setItem(LS_SHARPA, JSON.stringify(d));
   return d;
 }
