@@ -41,6 +41,6 @@ Hammasi **brauzer ichida** ishlaydi, xabar matni serverga yuborilmaydi (zaxira n
 - **Eksport**: chatni `.txt` yoki to'liq `.html` (rasm/ovoz/video ichiga joylangan; matn HTML-xavfsiz).
 - **Shablonlar**: tezkor javoblar (localStorage), yozish maydoniga qo'yish; rejalashtirib yuborish — Telegram'ning o'z imkoniyati.
 - **Qulf (PIN)**: `toza-intro.html` ichida (PBKDF2-SHA256 150 000 aylanish); Toza ochilganda va fonda turgach so'raydi. Xabarlarni shifrlamaydi.
-- **Ochiq chatda «O'chirilgan: N»** belgisi: bosilsa shu chatning o'chirilganlari ochiladi.
+- **Chatda o'chirilgan xabarlar o'z joyida** (`ghost.ts`): bubblelar orasiga «ko'lanka» blok (matn, ovoz/rasm/video, oldingi tahrirlar) qo'yiladi; qo'shimcha: ochiq chatda «O'chirilgan: N» belgisi (bosilsa shu chatning ro'yxati).
 
 Qoidalar: tweb GPL-3.0 (kod ochiq qoladi), Telegram brendi/logotipidan foydalanilmaydi, spam/avtomatlashtirilgan suiiste'mol yo'q, tweb pin qilingan commit'da, o'zgartirishlar kichik (`overlay/` + `patches/`). Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.

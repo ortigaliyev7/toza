@@ -5,6 +5,7 @@ import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, keyOf, TozaA
 import type {Incoming, SyncStatus} from './core';
 import {IdbStore} from './idb';
 import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
+import {injectGhosts} from './ghost';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -164,6 +165,7 @@ async function onDeleted(peerId: string, mids: Iterable<number>) {
   }
   await archive.deleted(peerId, list);
   updateBadge();
+  scheduleGhosts(900);                                      // tweb bubbleni olib tashlab bo'lgach
 }
 
 async function makeSync(code: string) {
@@ -183,6 +185,16 @@ export async function flushNow(): Promise<number> {
     state.lastError = e instanceof TozaApiError ? e.code : String(e?.message || e);
     throw e;
   }
+}
+
+// ---- O'chirilgan xabarlarni chat tarixining o'z joyiga qaytarish (ko'lanka bloklar): chat o'zgarganda/yuklanganda va o'chirilgandan keyin
+let ghostTimer: number | undefined;
+function scheduleGhosts(delay = 500) {
+  clearTimeout(ghostTimer);
+  ghostTimer = window.setTimeout(() => {
+    if(!isEnabled()) return;
+    injectGhosts({records: () => store.all(), voiceOf: (p, m) => archive.voiceOf(p, m), mediaOf: (p, m) => archive.mediaOf(p, m), enabled: chatEnabled});
+  }, delay);
 }
 
 // ---- Ochiq chatdagi o'chirilgan xabarlar belgisi: bosilsa shu chatning o'chirilganlari ro'yxati ochiladi
@@ -213,6 +225,7 @@ function observeBubbles() {
       currentPeer = String(peerId);
     }
     updateBadge();
+    scheduleGhosts();
   };
   const take = (el: Element) => {
     const bubbles = el.matches?.('.bubble[data-mid]') ? [el] : Array.from(el.querySelectorAll?.('.bubble[data-mid]') || []);
