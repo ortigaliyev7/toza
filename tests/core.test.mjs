@@ -336,3 +336,47 @@ test('Sharpa bo\'limlari: qurilma tokeni olinadi', async () => {
   await sync.init();
   assert.deepEqual(await sync.device(), {k: 'dev-token-123', url: 'https://sharpa.test/v2/'});
 });
+
+import {MEDIA_LABEL} from '../overlay/src/lib/toza/core.ts';
+import {mediaHtml} from '../overlay/src/lib/toza/tools-core.ts';
+
+test('fayllar: hujjat nomi bilan saqlanadi va qaytadi, har tur o\'z chegarasida, noma\'lum tur rad etiladi', async () => {
+  const arc = new Archive(new MemoryStore());
+  const bytes = new Uint8Array(1500).fill(9);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 1, date: 1}, 'file', 'application/pdf', 0, bytes, 'hisobot.pdf'), true);
+  const f = await arc.mediaOf(5, 1);
+  assert.equal(f.kind, 'file'); assert.equal(f.name, 'hisobot.pdf'); assert.equal(f.mime, 'application/pdf');
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 2, date: 1}, 'sticker', 'image/webp', 0, new Uint8Array(MEDIA_MAX_BYTES.sticker + 1)), false);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 3, date: 1}, 'gif', 'video/mp4', 0, bytes), true);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 4, date: 1}, 'audio', 'audio/mpeg', 200, bytes, 'qo\'shiq.mp3'), true);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 5, date: 1}, 'nomalum', 'x/y', 0, bytes), false);
+  assert.equal((await arc.mediaOf(5, 3)).name, undefined);
+  const long = 'a'.repeat(300) + '.txt';
+  await arc.captureMedia({peerId: 5, mid: 6, date: 1}, 'file', 'text/plain', 0, bytes, long);
+  assert.equal((await arc.mediaOf(5, 6)).name.length, 120);
+  for(const k of ['photo', 'round', 'video', 'gif', 'audio', 'file', 'sticker', 'voice']) assert.ok(MEDIA_LABEL[k]);
+});
+
+test('eksport HTML: har bir fayl turi to\'g\'ri teg bilan, fayl nomi xavfsiz', () => {
+  assert.match(mediaHtml({kind: 'photo', mime: 'image/jpeg', b64: []}, 'S'), /^<img /);
+  assert.match(mediaHtml({kind: 'sticker', mime: 'image/webp', b64: []}, 'S'), /^<img /);
+  assert.match(mediaHtml({kind: 'sticker', mime: 'video/webm', b64: []}, 'S'), /^<video autoplay loop muted/);
+  assert.match(mediaHtml({kind: 'gif', mime: 'video/mp4', b64: []}, 'S'), /^<video autoplay loop muted/);
+  assert.match(mediaHtml({kind: 'audio', mime: 'audio/mpeg', b64: []}, 'S'), /^<audio /);
+  assert.match(mediaHtml({kind: 'voice', mime: 'audio/ogg', b64: []}, 'S'), /^<audio /);
+  assert.match(mediaHtml({kind: 'video', mime: 'video/mp4', b64: []}, 'S'), /^<video controls/);
+  const a = mediaHtml({kind: 'file', mime: 'application/pdf', b64: [], name: '"><script>x</script>.pdf'}, 'S');
+  assert.match(a, /^<a href="S" download="/); assert.doesNotMatch(a, /<script>/);
+  const all = [{k: '9:1', peerId: '9', mid: 1, date: 1, text: '', kind: 'messageMediaDocument', u: 1}];
+  const {html} = exportHtml(all, '9', 'T', () => ({kind: 'file', mime: 'application/pdf"onload="x', b64: ['QUJD'], name: 'a.pdf'}));
+  assert.doesNotMatch(html, /"onload="/);
+  assert.match(html, /download="a.pdf"/);
+});
+
+import {docKind} from '../overlay/src/lib/toza/core.ts';
+test('hujjat turi: ovoz, video, GIF, musiqa, stiker (.tgs emas), oddiy fayl', () => {
+  assert.equal(docKind({type: 'voice'}), 'voice'); assert.equal(docKind({type: 'round'}), 'round'); assert.equal(docKind({type: 'video'}), 'video');
+  assert.equal(docKind({type: 'gif'}), 'gif'); assert.equal(docKind({type: 'audio'}), 'audio'); assert.equal(docKind({type: 'pdf'}), 'file');
+  assert.equal(docKind({type: 'sticker', sticker: 1}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 3}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 2}), null);
+  assert.equal(docKind({}), 'file'); assert.equal(docKind(undefined), null);
+});

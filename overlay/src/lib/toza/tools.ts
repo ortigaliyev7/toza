@@ -103,15 +103,15 @@ export async function viewExport(c: Ctx) {
     for(const mid of mids) {
       const v = await archive.voiceOf(sel.value, mid), f = await archive.mediaOf(sel.value, mid);
       if(v) packs.set(mid, {kind: 'voice', mime: v.mime, dur: v.dur, b64: [v.b64]});
-      else if(f) packs.set(mid, {kind: f.kind, mime: f.mime, dur: f.dur, b64: f.b64});
+      else if(f) packs.set(mid, {kind: f.kind, mime: f.mime, dur: f.dur, b64: f.b64, name: f.name});
     }
     const {html, skipped} = exportHtml(all, sel.value, title, (mid) => packs.get(mid));
     download(`toza-${safe}.html`, html, 'text/html;charset=utf-8');
-    msg.append(c.note(`Tayyor: to'liq fayl yuklandi (${packs.size} ta rasm/ovoz/video)${skipped ? `, ${skipped} ta katta fayl qo'shilmadi` : ''}.`, '#2a9d4b'));
+    msg.append(c.note(`Tayyor: to'liq fayl yuklandi (${packs.size} ta fayl)${skipped ? `, ${skipped} ta katta fayl qo'shilmadi` : ''}.`, '#2a9d4b'));
   };
   c.show(c.title('Chatni eksport qilish'),
     c.note('Tanlangan chatning saqlangan nusxasi bitta faylga yig\'iladi. Fayl faqat shu qurilmada yaratiladi.'), sel,
-    c.row(c.btn('Matn (.txt)', () => build(false)), c.btn('To\'liq (.html, rasm/ovoz/video bilan)', () => build(true), true)),
+    c.row(c.btn('Matn (.txt)', () => build(false)), c.btn('To\'liq (.html, fayllar bilan)', () => build(true), true)),
     msg, c.row(c.btn('Orqaga', c.back, true)));
 }
 

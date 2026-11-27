@@ -79,7 +79,17 @@ export function exportText(all: ArchivedMessage[], peerId: string, title: string
   return lines.join('\n') + '\n';
 }
 
-export type MediaPack = {kind: string; mime: string; dur?: number; b64: string[]};
+export type MediaPack = {kind: string; mime: string; dur?: number; b64: string[]; name?: string};
+
+/** Eksport uchun fayl HTML'i (data: manzil bilan). */
+export function mediaHtml(pack: MediaPack, src: string): string {
+  const k = pack.kind;
+  if(k === 'photo' || (k === 'sticker' && !/webm/.test(pack.mime))) return `<img src="${src}" style="max-width:${k === 'sticker' ? '160px' : '100%'};border-radius:10px">`;
+  if(k === 'voice' || k === 'audio') return `<audio controls src="${src}"></audio>`;
+  if(k === 'file') return `<a href="${src}" download="${escHtml(pack.name || 'fayl')}">📎 ${escHtml(pack.name || 'Fayl')}</a>`;
+  if(k === 'gif' || k === 'sticker') return `<video autoplay loop muted playsinline src="${src}" style="max-width:${k === 'sticker' ? '160px' : '100%'};border-radius:10px"></video>`;
+  return `<video controls src="${src}" style="max-width:100%;border-radius:${k === 'round' ? '50%' : '10px'}"></video>`;
+}
 export const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** To'liq eksport (.html): bitta fayl, rasm/ovoz/video ichiga joylangan (data:). `maxMediaBytes` dan oshsa fayllar tashlab ketiladi. */
@@ -96,9 +106,7 @@ export function exportHtml(all: ArchivedMessage[], peerId: string, title: string
       else {
         used += size;
         const src = `data:${pack.mime};base64,${pack.b64.join('')}`;
-        media = pack.kind === 'photo' ? `<img src="${src}" style="max-width:100%;border-radius:10px">`
-          : pack.kind === 'voice' ? `<audio controls src="${src}"></audio>`
-          : `<video controls src="${src}" style="max-width:100%;border-radius:10px"></video>`;
+        media = mediaHtml(pack, escHtml(src));
       }
     }
     const text = m.text ? `<div class="t">${escHtml(m.text).replace(/\n/g, '<br>')}</div>` : (!media && m.kind ? `<div class="t i">[${escHtml(m.kind.replace('messageMedia', ''))}]</div>` : '');

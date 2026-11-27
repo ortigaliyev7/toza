@@ -1,8 +1,8 @@
 import rootScope from '@lib/rootScope';
 import appDownloadManager from '@lib/appDownloadManager';
 import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
-import {Archive, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, keyOf, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
-import type {Incoming, SyncStatus} from './core';
+import {Archive, docKind, MEDIA_LABEL, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, isBlobKey, keyOf, TozaApiError, deriveKeys, generateRecoveryCode, normalizeCode, restoreInto} from './core';
+import type {Incoming, MediaKind, SyncStatus} from './core';
 import {IdbStore} from './idb';
 import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
 import {injectGhosts} from './ghost';
@@ -74,7 +74,7 @@ export function setChatEnabled(peerId: string | number, on: boolean) {
   localStorage.setItem(LS_OFF, JSON.stringify([...o]));
 }
 
-// ---- Obuna bor-yo'qligi (serverdan): ovoz, rasm va dumaloq video faqat obunada
+// ---- Obuna bor-yo'qligi (serverdan): fayllar (ovoz, rasm, video, hujjat...) faqat obunada
 let paid = false;
 export const isPaid = () => paid;
 export async function refreshPaid() {
@@ -91,34 +91,32 @@ const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-/** Ovoz, rasm, dumaloq video (obunada): yuklab olib shifrlanadigan arxivga qo'shamiz. Xato bo'lsa xabar matni baribir saqlanadi. */
+/** Ovoz va fayllar (obunada): rasm, video, dumaloq video, GIF, musiqa, hujjat, stiker — yuklab olib shifrlanadigan arxivga qo'shamiz.
+ *  Xato bo'lsa xabar matni baribir saqlanadi. */
 async function captureMedia(m: any, inc: Incoming) {
   if(!paid || !m?.media) return;
   const k = inc.peerId + ':' + inc.mid;
   if(mediaTried.has(k)) return;
-  const doc = m.media.document, photo = m.media.photo;
-  const isVoice = m.media._ === 'messageMediaDocument' && doc?.type === 'voice';
-  const isRound = m.media._ === 'messageMediaDocument' && doc?.type === 'round';
-  const isVideo = m.media._ === 'messageMediaDocument' && doc?.type === 'video';
-  const isPhoto = m.media._ === 'messageMediaPhoto' && !!photo;
-  if(!isVoice && !isRound && !isVideo && !isPhoto) return;
-  if((isVoice || isRound || isVideo) && Number(doc.size) > (isVoice ? VOICE_MAX_BYTES : isRound ? MEDIA_MAX_BYTES.round : MEDIA_MAX_BYTES.video)) return;
+  const doc = m.media._ === 'messageMediaDocument' ? m.media.document : undefined, photo = m.media._ === 'messageMediaPhoto' ? m.media.photo : undefined;
+  const kind: MediaKind | 'voice' | null = photo ? 'photo' : docKind(doc);
+  if(!kind || (doc && doc._ !== 'document')) return;
+  if(doc && Number(doc.size) > (kind === 'voice' ? VOICE_MAX_BYTES : MEDIA_MAX_BYTES[kind])) return;
   mediaTried.add(k);
   try {
-    if(isVoice) {
+    if(kind === 'voice') {
       if(await archive.voiceOf(inc.peerId, inc.mid)) return;
       const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
       if(!blob || blob.size > VOICE_MAX_BYTES) return;
       await archive.captureVoice(inc, {mime: doc.mime_type || blob.type || 'audio/ogg', dur: Number(doc.duration) || 0, b64: await toB64(blob)});
-    } else if(isRound || isVideo) {
-      if(await archive.mediaOf(inc.peerId, inc.mid)) return;
-      const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
-      if(blob) await archive.captureMedia(inc, isRound ? 'round' : 'video', doc.mime_type || blob.type || 'video/mp4', Number(doc.duration) || 0, await toBytes(blob));
-    } else {
+    } else if(photo) {
       if(await archive.mediaOf(inc.peerId, inc.mid)) return;
       const size = choosePhotoSize(photo, 1280, 1280);                  // 1280 px gacha (sifatli, lekin og'ir emas)
       const blob: Blob = await (appDownloadManager as any).downloadMedia({media: photo, thumb: size});
       if(blob) await archive.captureMedia(inc, 'photo', blob.type || 'image/jpeg', 0, await toBytes(blob));
+    } else {
+      if(await archive.mediaOf(inc.peerId, inc.mid)) return;
+      const blob: Blob = await (appDownloadManager as any).downloadMedia({media: doc});
+      if(blob) await archive.captureMedia(inc, kind, doc.mime_type || blob.type || 'application/octet-stream', Number(doc.duration) || 0, await toBytes(blob), doc.file_name);
     }
   } catch{ mediaTried.delete(k); /* keyingi safar qayta uriniladi */ }
 }
@@ -128,14 +126,57 @@ const LS_SEEN = 'toza_seen', LS_GAPS = 'toza_gaps', GAP_MIN_MS = 10 * 60 * 1000;
 export type Gap = {from: number; to: number};
 export const gaps = (): Gap[] => { try { return JSON.parse(localStorage.getItem(LS_GAPS) || '[]'); } catch{ return []; } };
 function markSeen() { try { localStorage.setItem(LS_SEEN, String(Date.now())); } catch{ /* xotira yopiq */ } }
-function checkGap() {
+/** Toza yopiq bo'lgan vaqtni yozib qo'yadi. Qaytaradi: oldingi «ko'rilgan» vaqt (ms) — tarixdan to'ldirish shu vaqtdan boshlanadi. */
+function checkGap(): number {
   const last = Number(localStorage.getItem(LS_SEEN) || 0), now = Date.now();
   if(last && now - last > GAP_MIN_MS) {
     const g = [...gaps(), {from: last, to: now}].slice(-20);
     localStorage.setItem(LS_GAPS, JSON.stringify(g));
-    setTimeout(() => notice('Toza', `Toza ${fmtDuration(now - last)} yopiq edi. Shu vaqtda kelib o'chirilgan xabarlarning matni saqlanmagan bo'lishi mumkin.`), 4000);
+    setTimeout(() => notice('Toza', `Toza ${fmtDuration(now - last)} yopiq edi. Shu vaqtda kelgan xabarlar tarixdan saqlanmoqda. Shu orada o'chirilganlarini esa qaytarib bo'lmaydi.`), 4000);
   }
   markSeen();
+  return last;
+}
+
+// ---- Bo'shliqni to'ldirish: Toza yopiq paytda kelgan (hali o'chirilmagan) xabarlarni shaxsiy chatlar tarixidan olib arxivga yozamiz.
+// Keyin ular o'chirilsa ham nusxasi qoladi. Telegram'ga ortiqcha yuk bo'lmasligi uchun: faqat yangi xabari bor chatlar, chat orasida pauza.
+export const BACKFILL_MAX_CHATS = 40, BACKFILL_PER_CHAT = 100;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const backfillState = {running: false, chats: 0, saved: 0, at: 0};
+
+export async function backfill(sinceMs: number): Promise<number> {
+  if(backfillState.running || !sinceMs || !isEnabled()) return 0;
+  backfillState.running = true;
+  let saved = 0, chats = 0;
+  const since = Math.floor(sinceMs / 1000) - 120;                                  // 2 daqiqa zaxira bilan
+  try {
+    const mgr = (rootScope as any).managers;
+    let dialogs: any[] = [];
+    for(let i = 0; i < 10 && !dialogs.length; i++) {                               // ro'yxat hali yuklanmagan bo'lishi mumkin
+      try { dialogs = await mgr.dialogsStorage.getCachedDialogs(true) || []; } catch{ dialogs = []; }
+      if(!dialogs.length) await sleep(1500);
+    }
+    const peers = dialogs.filter((d) => d?.peerId && chatEnabled(d.peerId) && d.top_message).slice(0, 200);
+    for(const d of peers) {
+      if(chats >= BACKFILL_MAX_CHATS || !isEnabled()) break;
+      const top = await mgr.appMessagesManager.getMessageByPeer(d.peerId, d.top_message).catch((): any => undefined);
+      if(!top || top.date < since) continue;
+      chats++;
+      const res = await mgr.appMessagesManager.getHistory({peerId: d.peerId, limit: BACKFILL_PER_CHAT}).catch((): any => undefined);
+      for(const mid of res?.history || []) {
+        const m = await mgr.appMessagesManager.getMessageByPeer(d.peerId, mid).catch((): any => undefined);
+        if(!m || m.date < since) continue;
+        const before = await store.get(keyOf(String(m.peerId), m.mid));
+        await capture(m);
+        if(!before) saved++;
+      }
+      await sleep(400);
+    }
+  } finally {
+    Object.assign(backfillState, {running: false, chats, saved, at: Date.now()});
+  }
+  if(saved) { updateBadge(); scheduleGhosts(); }
+  return saved;
 }
 
 const canAlert = () => paid && alertsOn() && isEnabled();
@@ -159,7 +200,7 @@ async function onDeleted(peerId: string, mids: Iterable<number>) {
       const rec = await store.get(keyOf(peerId, mid));
       if(rec && !rec.deleted && !rec.out) {
         const voice = await archive.voiceOf(peerId, mid), file = await archive.mediaOf(peerId, mid);
-        pushAlert({kind: 'deleted', who, text: rec.text || (voice ? 'ovozli xabar' : file ? (file.kind === 'photo' ? 'rasm' : file.kind === 'round' ? 'dumaloq video' : 'video') : rec.kind ? rec.kind.replace('messageMedia', '').toLowerCase() : '')});
+        pushAlert({kind: 'deleted', who, text: rec.text || (voice ? MEDIA_LABEL.voice.toLowerCase() : file ? MEDIA_LABEL[file.kind].toLowerCase() + (file.name ? ' «' + file.name + '»' : '') : rec.kind ? rec.kind.replace('messageMedia', '').toLowerCase() : '')});
       }
     }
   }
@@ -260,7 +301,7 @@ export function startTozaBackup() {
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));
   applyProfileTheme();
-  if(isEnabled()) checkGap();
+  if(isEnabled()) { const last = checkGap(); setTimeout(() => { backfill(last).catch((): void => undefined); }, 6000); }
   window.setInterval(() => { if(isEnabled()) markSeen(); }, 30000);
   window.addEventListener('pagehide', markSeen);
   setAlertOpener(() => { import('./ui').then((m) => m.openTozaBackup()); });
@@ -312,7 +353,7 @@ export async function disableBackup(wipeServer: boolean) {
   if(wipeServer && sy) await sy.wipe();
   localStorage.removeItem(LS_ON);
   localStorage.removeItem(LS_CODE);
-  localStorage.removeItem(LS_SHARPA);
+  localStorage.removeItem('toza_sharpa');                     // eski Sharpa qurilma tokeni (endi ishlatilmaydi)
   sync = null;
   await store.clear();
   reportStatus(true);

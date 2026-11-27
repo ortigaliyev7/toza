@@ -12,7 +12,8 @@ Web K to'liq ko'chirilmaydi: `build.sh` uni aniq versiyada (`TWEB_REF`) yuklaydi
 Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arxivga (IndexedDB) yozadi: yangi, tahrirlangan va o'chirilganlarini. Arxiv **shifrlanib** Sharpa serveriga yuklanadi (nol bilim: shifrlash kaliti serverga berilmaydi). Yangi qurilmada tiklash kodi bilan arxiv tiklanadi.
 - Kod: `overlay/src/lib/toza/` (`core.ts` — kalit/shifrlash/arxiv/sinxronlash, tweb'ga bog'liq emas; `hooks.ts`, `ui.ts`, `idb.ts` — tweb bilan bog'lash). tweb'ga o'zgartirish: `patches/0001-toza-menu.patch`.
 - Server: Sharpa bot servisidagi `/tb/*` (shifrlangan bo'laklar ombor kanalida saqlanadi).
-- Cheklov: faqat Toza ochiq turganda ko'rilgan/kelgan xabarlar saqlanadi. Hozircha faqat matn (media keyingi bosqichda).
+- Fayllar (Sharpa obunasida): rasm, video, dumaloq video, ovoz, GIF, musiqa, hujjat (nomi bilan), stiker (.webp/.webm; animatsiyali .tgs saqlanmaydi). Chegaralar: `core.ts → MEDIA_MAX_BYTES`.
+- Bo'shliqni to'ldirish: Toza ochilganda, yopiq paytda kelgan xabarlar shaxsiy chatlar tarixidan olinib arxivga yoziladi (`hooks.ts → backfill`, 40 tagacha chat). Yopiq paytda kelib, o'sha zahoti o'chirilgan xabarni qaytarib bo'lmaydi.
 - Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.
 
 ## Kalitlar
