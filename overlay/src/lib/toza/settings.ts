@@ -146,6 +146,7 @@ export function openTozaSettings() {
         nav('spark', 'Animatsiyalar', animSummary(), () => viewAnim()),
         nav('palette', 'Profil dizayni', 'Ism rangi va profil rangi', () => viewDesign())),
       sec('Qo\'shimchalarni yoqish/o\'chirish',
+        check('Pastki panel (telefon)', 'Chatlar · Kontaktlar · Sozlamalar · Profil. «Profil»ni bosib tursangiz — akkauntlar.', () => featureOn('tabbar'), (v) => setFeature('tabbar', v), 'contact'),
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
         check('Bosib turib yozish', 'Telefonda: mikrofonni bosib turing — yoziladi, qo\'yib yuboring — yuboriladi, chapga suring — bekor, tepaga — qulflash. Qisqa bosish: ovoz ↔ dumaloq video.', () => featureOn('holdrec'), (v) => setFeature('holdrec', v), 'mic'),
