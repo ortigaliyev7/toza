@@ -17,6 +17,7 @@ import {startOpenTracking} from './opened';
 import {startSelectionBar} from './selbar';
 import {startRoundCamera} from './roundcam';
 import {startHoldRecord} from './holdrec';
+import {startAnim} from './anim';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -364,6 +365,7 @@ export function startTozaBackup() {
   try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
   try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
   try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+  try { startAnim(); } catch{ /* animatsiyalar muhim emas */ }
   // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.
   // «Offlayn» o'chiq bo'lsa, darrov «onlayn» bo'lamiz (avval «offlayn» yuborilgan bo'lsa ham qolib ketmasin).
   document.addEventListener('visibilitychange', () => { if(!document.hidden) syncOnline(); });
