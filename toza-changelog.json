@@ -2,6 +2,12 @@
   {
     "date": "2026-11-27",
     "items": [
+      "O'chirilgan va tahrirlangan xabarlar endi bepul va o'zi yoqilgan: kod ham, obuna ham kerak emas. Shaxsiy chatlarda o'chirilgan xabar o'z joyida qoladi, tahrirlanganining eski matni ostida ko'rinadi. O'chirish: Toza sozlamalari → Saqlash."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "Telefonda pastki panel: Chatlar · Kontaktlar · Sozlamalar · Profil. «Profil»ni bosib tursangiz, akkauntlar ro'yxati va «Hisob qo'shish» chiqadi.",
       "Yangi profil sahifasi: rangli muqova, katta rasm, «Rasm belgilash», «Tahrirlash», «Sozlamalar», kanal, raqam, bio va tug'ilgan kun. ⋮ menyusida profil rangi, username va havoladan nusxa olish.",
       "Profil rangi oynasi yangilandi: «Profil | Ism», katta namuna, asliga qaytarish va «Uslubni qo'llash». Ranglar Telegram'ga saqlanadi va hamma ilovalarda ko'rinadi (Premium kerak)."
