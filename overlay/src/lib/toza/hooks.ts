@@ -288,7 +288,7 @@ export async function updateReadButton() {
     if(!getFlags().noRead || !currentPeer) { readBtn?.remove(); readBtn = null; return; }
     if(!readBtn) {
       readBtn = document.createElement('button');
-      readBtn.setAttribute('style', 'position:fixed;top:66px;right:150px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:#5461EE;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
+      readBtn.setAttribute('style', 'position:fixed;top:66px;right:150px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:var(--primary-color,#3390ec);box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
       readBtn.title = 'Ko\'rinmas rejim yoqilgan: suhbatdosh xabari o\'qilganini ko\'rmaydi';
       readBtn.onclick = () => markReadNow(currentPeer);
       document.body.append(readBtn);

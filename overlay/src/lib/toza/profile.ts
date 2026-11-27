@@ -25,7 +25,7 @@ export function openTozaProfile() {
 
   const p = getProfile();
   const avatar = h('div', '', p.emoji || '🙂');
-  avatar.setAttribute('style', 'width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#5866F0,#3F4EDB);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none;box-shadow:0 8px 18px rgba(70,80,200,.3),inset 0 1px 0 rgba(255,255,255,.4);');
+  avatar.setAttribute('style', 'width:64px;height:64px;border-radius:50%;background:var(--primary-color,#3390ec);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none;box-shadow:0 8px 18px rgba(70,80,200,.3),inset 0 1px 0 rgba(255,255,255,.4);');
   const statusLine = h('div', 'tz-sub', p.status || 'Status yozilmagan');
   const top = h('div', 'tz-head');
   top.setAttribute('style', 'display:flex;align-items:center;gap:14px;');
@@ -68,7 +68,7 @@ export function openTozaProfile() {
     return wrap;
   };
   const emojiRow = chips(EMOJIS, () => emoji, (v) => { emoji = v; avatar.textContent = v || '🙂'; }, (v, el) => { el.textContent = v || '∅'; });
-  const accentRow = chips(ACCENTS, () => accent, (v) => { accent = v; }, (v, el) => { el.style.setProperty('background', v || 'linear-gradient(135deg,#5866F0,#3F4EDB)', 'important'); el.style.color = '#fff'; el.textContent = v ? '' : '∅'; });
+  const accentRow = chips(ACCENTS, () => accent, (v) => { accent = v; }, (v, el) => { el.style.setProperty('background', v || 'var(--primary-color,#3390ec)', 'important'); el.style.color = '#fff'; el.textContent = v ? '' : '∅'; });
   const msg = h('div', 'tz-sub');
   const save = btn('Saqlash', () => { setProfile({status: statusIn.value.trim(), emoji, accent}); statusLine.textContent = statusIn.value.trim() || 'Status yozilmagan'; applyProfileTheme(); msg.textContent = 'Saqlandi'; }, true);
   const acts = h('div'); acts.setAttribute('style', 'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;');
