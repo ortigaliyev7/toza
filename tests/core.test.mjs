@@ -380,3 +380,39 @@ test('hujjat turi: ovoz, video, GIF, musiqa, stiker (.tgs emas), oddiy fayl', ()
   assert.equal(docKind({type: 'sticker', sticker: 1}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 3}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 2}), null);
   assert.equal(docKind({}), 'file'); assert.equal(docKind(undefined), null);
 });
+
+import {latinToCyrillic, cyrillicToLatin, parseKeywords, matchKeyword, exportJson} from '../overlay/src/lib/toza/tools-core.ts';
+test('lotin <-> kirill', () => {
+  assert.equal(latinToCyrillic('Salom, qalaysan? Shahar o\'zgardi, g\'isht, choy'), 'Салом, қалайсан? Шаҳар ўзгарди, ғишт, чой');
+  assert.equal(latinToCyrillic('Ertaga yer, yangi yo\'l, yulduz'), 'Эртага ер, янги йўл, юлдуз');
+  assert.equal(latinToCyrillic('TOSHKENT oʻzbek ma\'no'), 'ТОШКЕНТ ўзбек маъно');
+  assert.equal(latinToCyrillic('https://t.me/abc @user'), 'https://t.me/abc @user');
+  assert.equal(cyrillicToLatin('Салом, қалайсан? Шаҳар ўзгарди, ғишт, чой'), 'Salom, qalaysan? Shahar o\'zgardi, g\'isht, choy');
+  assert.equal(cyrillicToLatin('Ер, янги йўл, юлдуз, Эртага'), 'Yer, yangi yo\'l, yulduz, Ertaga');
+  assert.equal(cyrillicToLatin('ТОШКЕНТ'), 'TOSHKENT');
+  assert.equal(cyrillicToLatin('Шаҳар'), 'Shahar');
+});
+test('kalit so\'zlar: ajratish va so\'z boshidan topish', () => {
+  const k = parseKeywords('Olma, toshkent\n ish;a, olma');
+  assert.deepEqual(k, ['olma', 'toshkent', 'ish']);
+  assert.equal(matchKeyword('Ertaga TOSHKENTga boraman', k), 'toshkent');
+  assert.equal(matchKeyword('Kishi keldi', ['ish']), '');
+  assert.equal(matchKeyword('Yangi ish bor', ['ish']), 'ish');
+  assert.equal(matchKeyword('oʻzbek', ['o\'zbek']), 'o\'zbek');
+  assert.equal(matchKeyword('', k), '');
+});
+test('JSON eksport', () => {
+  const all = [{k: '1:2', peerId: '1', mid: 2, date: 5, text: 'b', u: 1, deleted: 9}, {k: '1:1', peerId: '1', mid: 1, date: 4, text: 'a', out: true, u: 1, edits: [{t: 1, text: 'x'}]}, {k: 'm:1:1:0', peerId: '1', mid: 1, date: 4, text: '', u: 1}];
+  const j = JSON.parse(exportJson(all, [{peerId: '1', title: 'Ali'}], 100));
+  assert.equal(j.exported, 100); assert.equal(j.chats[0].title, 'Ali');
+  assert.deepEqual(j.chats[0].messages.map((m) => m.text), ['a', 'b']);
+  assert.equal(j.chats[0].messages[1].deleted, 9); assert.equal(j.chats[0].messages[0].edits.length, 1);
+});
+test('bir martalik media: belgi tahrirdan keyin ham qoladi', async () => {
+  const arc = new Archive(new MemoryStore());
+  await arc.capture({peerId: 1, mid: 1, date: 1, text: '', kind: 'messageMediaPhoto', once: true});
+  await arc.capture({peerId: 1, mid: 1, date: 1, text: 'x', kind: undefined});
+  const list = await arc.onceMessages();
+  assert.equal(list.length, 1); assert.equal(list[0].kind, 'messageMediaPhoto');
+  assert.equal(mergeMessage({...list[0], once: undefined, u: 5}, {...list[0], u: 1}).once, true);
+});

@@ -115,6 +115,7 @@ export type ArchivedMessage = {
   kind?: string;                   // media turi (matnsiz xabar uchun)
   edits?: {t: number; text: string}[]; // oldingi versiyalar
   deleted?: number;                // o'chirilgan vaqt (sekund)
+  once?: true;                     // bir martalik (ko'rilgach yo'qoladigan) rasm/video edi
   voice?: {mime: string; dur: number; b64: string}; // ovozli xabar (faqat `v:` yozuvlarida): kichik, bir marta yuklanadi
   media?: {kind: MediaKind; mime: string; dur: number; i: number; n: number; b64: string; name?: string}; // fayl bo'lagi (faqat `m:` yozuvlarida); `name` — hujjat nomi
   u: number;                       // oxirgi o'zgarish vaqti (ms) — birlashtirishda yangisi yutadi
@@ -168,10 +169,10 @@ export function mergeMessage(a: ArchivedMessage, b: ArchivedMessage): ArchivedMe
   const seen = new Set<string>();
   const edits = [...(old.edits || []), ...(cur.edits || [])].filter((e) => { const id = e.t + '|' + e.text; return seen.has(id) ? false : (seen.add(id), true); }).sort((x, y) => x.t - y.t);
   const deleted = [a.deleted, b.deleted].filter(Boolean).sort((x, y) => x! - y!)[0];
-  return {...cur, edits: edits.length ? edits : undefined, deleted, kind: cur.kind || old.kind};
+  return {...cur, edits: edits.length ? edits : undefined, deleted, kind: cur.kind || old.kind, ...(a.once || b.once ? {once: true as const} : {})};
 }
 
-export type Incoming = {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean; text: string; kind?: string};
+export type Incoming = {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean; text: string; kind?: string; once?: boolean};
 
 /** Mahalliy arxiv mantiqi (rootScope'ga bog'liq emas): yangi xabar, tahrir, o'chirish. */
 export class Archive {
@@ -186,7 +187,8 @@ export class Archive {
   async capture(m: Incoming): Promise<'new' | 'edited' | 'same'> {
     const k = keyOf(m.peerId, m.mid);
     const prev = await this.store.get(k);
-    const base = {k, peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: m.text, kind: m.kind, u: this.now()};
+    const base: ArchivedMessage = {k, peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: m.text, kind: m.kind || prev?.kind, u: this.now()};
+    if(m.once || prev?.once) base.once = true;                                        // ko'rilgach media yo'qoladi: belgi saqlanib qoladi
     if(!prev) {
       await this.store.put(base, true);
       return 'new';
@@ -254,6 +256,11 @@ export class Archive {
     const keys = (await this.store.all()).filter((m) => m.peerId === String(peerId)).map((m) => m.k);
     await this.store.remove(keys);
     return keys.length;
+  }
+
+  /** Saqlangan bir martalik media xabarlari (yangisi birinchi). */
+  async onceMessages(): Promise<ArchivedMessage[]> {
+    return (await this.store.all()).filter((x) => x.once && !isBlobKey(x.k)).sort((x, y) => y.date - x.date);
   }
 
   async deletedMessages(): Promise<ArchivedMessage[]> {

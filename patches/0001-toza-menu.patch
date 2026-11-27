@@ -1,5 +1,5 @@
 diff --git a/src/components/sidebarLeft/index.ts b/src/components/sidebarLeft/index.ts
-index 6c7c795..afd80eb 100644
+index 6c7c795..3dbbc9a 100644
 --- a/src/components/sidebarLeft/index.ts
 +++ b/src/components/sidebarLeft/index.ts
 @@ -1,6 +1,7 @@
@@ -10,7 +10,7 @@ index 6c7c795..afd80eb 100644
  import {createSearchGroup, getSearchTransitionDuration, SearchGroup} from '@components/searchGroup';
  import crossfadeContent, {CROSS_FADE_KEYFRAMES, getAnimatedOptions} from '@helpers/dom/crossfadeContent';
  import DialogsContextMenu from '@components/dialogsContextMenu';
-@@ -802,6 +803,22 @@ export class AppSidebarLeft extends SidebarSlider {
+@@ -802,6 +803,30 @@ export class AppSidebarLeft extends SidebarSlider {
          });
        },
        verify: () => IS_CALL_SUPPORTED || IS_CONFERENCE_CALL_SUPPORTED
@@ -30,10 +30,18 @@ index 6c7c795..afd80eb 100644
 +          import('@lib/toza/profile').then((m) => m.openTozaProfile());
 +        });
 +      }
++    }, {
++      icon: 'eye',
++      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Toza sozlamalari'; return s; })(),
++      onClick: () => {
++        closeTabsBefore(() => {
++          import('@lib/toza/settings').then((m) => m.openTozaSettings());
++        });
++      }
      }, {
        id: 'settings',
        icon: 'settings',
-@@ -814,6 +831,7 @@ export class AppSidebarLeft extends SidebarSlider {
+@@ -814,6 +839,7 @@ export class AppSidebarLeft extends SidebarSlider {
        }
      }, moreSubmenu];
  

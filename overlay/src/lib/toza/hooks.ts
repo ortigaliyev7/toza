@@ -6,6 +6,9 @@ import type {Incoming, MediaKind, SyncStatus} from './core';
 import {IdbStore} from './idb';
 import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
 import {injectGhosts} from './ghost';
+import {anyGhost, applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
+import {matchKeyword} from './tools-core';
+import {bindTranslitKeys} from './translit';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -60,7 +63,7 @@ export {generateRecoveryCode, normalizeCode, TozaApiError};
 
 function toIncoming(m: any): Incoming | null {
   if(!m || m._ !== 'message' || typeof m.mid !== 'number' || m.peerId === undefined) return null;
-  return {peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.fromId !== undefined ? String(m.fromId) : undefined, out: !!m.pFlags?.out, text: m.message || '', kind: m.media?._};
+  return {peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.fromId !== undefined ? String(m.fromId) : undefined, out: !!m.pFlags?.out, text: m.message || '', kind: m.media?._, ...(m.media?.ttl_seconds ? {once: true} : {})};
 }
 
 // ---- Qaysi chatlar saqlanadi: faqat shaxsiy (odam bilan) chatlar; foydalanuvchi alohida chatni o'chira oladi (localStorage).
@@ -95,6 +98,7 @@ const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
  *  Xato bo'lsa xabar matni baribir saqlanadi. */
 async function captureMedia(m: any, inc: Incoming) {
   if(!paid || !m?.media) return;
+  if(inc.once && !saveOnceOn()) return;                                       // bir martalik media: faqat foydalanuvchi yoqqan bo'lsa
   const k = inc.peerId + ':' + inc.mid;
   if(mediaTried.has(k)) return;
   const doc = m.media._ === 'messageMediaDocument' ? m.media.document : undefined, photo = m.media._ === 'messageMediaPhoto' ? m.media.photo : undefined;
@@ -265,6 +269,41 @@ async function updateBadge() {
   } catch{ /* belgi muhim emas */ }
 }
 
+// ---- Kalit so'z bo'yicha xabar berish: guruh/kanal/shaxsiy chatda belgilangan so'z chiqsa (Toza ochiq bo'lsa). Hammasi shu brauzerda.
+async function onKeyword(m: any) {
+  if(!keywordsOn() || !m || m._ !== 'message' || m.pFlags?.out || !m.message) return;
+  const hit = matchKeyword(m.message, keywords());
+  if(!hit) return;
+  if(!document.hidden && currentPeer === String(m.peerId)) return;                 // shu chat ochiq turibdi
+  const who = await peerTitle(String(m.peerId));
+  notice(`🔔 ${who}`, `«${hit}»: ${m.message.length > 140 ? m.message.slice(0, 139) + '…' : m.message}`);
+}
+
+// ---- Ko'rinmas rejim: ochiq chatda «O'qildi deb yuborish» tugmasi (o'qildi belgisi faqat shu tugma bosilganda ketadi)
+let readBtn: HTMLElement | null = null;
+export async function updateReadButton() {
+  try {
+    if(!getFlags().noRead || !currentPeer) { readBtn?.remove(); readBtn = null; return; }
+    if(!readBtn) {
+      readBtn = document.createElement('button');
+      readBtn.setAttribute('style', 'position:fixed;top:66px;right:150px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:#5461EE;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
+      readBtn.title = 'Ko\'rinmas rejim yoqilgan: suhbatdosh xabari o\'qilganini ko\'rmaydi';
+      readBtn.onclick = () => markReadNow(currentPeer);
+      document.body.append(readBtn);
+    }
+    readBtn.textContent = '👁 O\'qildi yuborish';
+  } catch{ /* muhim emas */ }
+}
+export async function markReadNow(peerId: string) {
+  if(!peerId) return;
+  const mgr = (rootScope as any).managers;
+  try {
+    const top = (await mgr.appMessagesManager.getDialogOnly(Number(peerId)))?.top_message;
+    if(top) await mgr.appMessagesManager.readHistory({peerId: Number(peerId), maxId: top, force: true});
+    if(readBtn) { readBtn.textContent = '✓ Yuborildi'; setTimeout(() => readBtn && (readBtn.textContent = '👁 O\'qildi yuborish'), 1500); }
+  } catch{ /* tarmoq */ }
+}
+
 function observeBubbles() {
   const seen = new Set<string>();
   let queue: {peerId: any; mid: number}[] = [];
@@ -276,6 +315,7 @@ function observeBubbles() {
       currentPeer = String(peerId);
     }
     updateBadge();
+    updateReadButton();
     scheduleGhosts();
   };
   const take = (el: Element) => {
@@ -297,6 +337,10 @@ export function startTozaBackup() {
   started = true;
   const on = (fn: (...a: any[]) => any) => (...a: any[]) => { if(isEnabled()) fn(...a); };
   rootScope.addEventListener('history_append', on(({message}: any) => capture(message)));
+  rootScope.addEventListener('history_append', ({message}: any) => { onKeyword(message).catch((): void => undefined); });
+  applyFlags();
+  bindTranslitKeys();
+  document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));

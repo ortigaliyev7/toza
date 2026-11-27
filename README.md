@@ -46,5 +46,15 @@ Hammasi **brauzer ichida** ishlaydi, xabar matni serverga yuborilmaydi (zaxira n
 
 Qoidalar: tweb GPL-3.0 (kod ochiq qoladi), Telegram brendi/logotipidan foydalanilmaydi, spam/avtomatlashtirilgan suiiste'mol yo'q, tweb pin qilingan commit'da, o'zgartirishlar kichik (`overlay/` + `patches/`). Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.
 
+## Toza sozlamalari
+Chap menyu → **Toza sozlamalari** (`overlay/src/lib/toza/settings.ts`, sozlamalar `prefs.ts`, hammasi localStorage'da):
+- **Ko'rinmas rejim**: «o'qildi» (va ovoz «tinglandi») yubormaslik, «yozmoqda» yubormaslik, doim «offlayn», hikoyani yashirin ko'rish. tweb ishchisida (`patches/0002-toza-ghost.patch`, bayroqlar `flags.ts`): o'qish faqat mahalliy bo'ladi; chatdagi «👁 O'qildi yuborish» tugmasi yoki «O'qilgan deb belgilash» serverga yuboradi.
+- **Bir martalik media**: ixtiyoriy (standart o'chiq), zaxira + obuna bilan saqlanadi, ro'yxati shu oynada.
+- **Hikoyalar**: kontaktlarning hozirgi hikoyalarini rasm/video qilib yuklab olish.
+- **Kalit so'zlar**: belgilangan so'z chiqsa ekranda/tizim bildirishnomasi bilan xabar (`tools-core.ts → matchKeyword`).
+- **Lotin ↔ Kirill**: o'girgich va yozish maydonida Alt+K / Alt+L (`translit.ts`).
+- Tarjima, bir nechta akkaunt (3 tagacha), chat papkalari, shrift o'lchami va fon — tweb'ning o'zida bor, oyna ularga yo'l ko'rsatadi.
+- Eksport: .txt, .html, PDF (chop etish oynasi orqali), JSON (bitta yoki hamma chatlar).
+
 ## Toza profilim
 Chap menyu → **Toza profilim**: Toza holati (zaxira, PIN qulf, xabar berish, hajm), shaxsiy status/belgi/rang mavzusi (faqat shu brauzerda), chatlar boshqaruvi va xavfsizlik tarixi. Sharpa bilan bog'liq emas.

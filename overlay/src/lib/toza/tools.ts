@@ -1,7 +1,7 @@
 // Toza qo'shimcha imkoniyatlari oynalari: qidiruv, statistika, eksport, shablonlar, qulf (PIN).
 // Hammasi brauzer ichida: matn serverga yuborilmaydi (zaxira nol bilim bo'lib qoladi).
 import {archive, peerTitle, store as archiveStore} from './hooks';
-import {chatMessages, computeStats, exportHtml, exportText, fmtStamp, newTemplate, searchArchive} from './tools-core';
+import {chatMessages, computeStats, exportHtml, exportJson, exportText, fmtStamp, newTemplate, searchArchive} from './tools-core';
 import type {MediaPack, Template} from './tools-core';
 
 export type Ctx = {
@@ -88,30 +88,54 @@ export async function viewStats(c: Ctx) {
 }
 
 // ---------------------------------------------------------------- eksport
+/** HTML'ni yashirin oynada ochib chop etish oynasini chaqiradi: u yerda «PDF sifatida saqlash» tanlanadi. */
+function printHtml(html: string) {
+  const f = document.createElement('iframe');
+  f.setAttribute('style', 'position:fixed;width:0;height:0;border:0;right:0;bottom:0;');
+  document.body.append(f);
+  const d = f.contentDocument!;
+  d.open(); d.write(html.replace('</style>', '@media print{.m{break-inside:avoid;box-shadow:none;border:1px solid #ddd}body{background:#fff}}</style>')); d.close();
+  const go = () => { try { f.contentWindow!.focus(); f.contentWindow!.print(); } finally { setTimeout(() => f.remove(), 60000); } };
+  const imgs = Array.from(d.images);
+  Promise.all(imgs.map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))).then(() => setTimeout(go, 200));
+}
+
 export async function viewExport(c: Ctx) {
-  const sel = await chatSelect(c, false);
+  const sel = await chatSelect(c, true);
   const msg = c.h('div');
-  const build = async(full: boolean) => {
-    msg.replaceChildren();
-    if(!sel.value) { msg.append(c.note('Chatni tanlang.', '#d33')); return; }
-    const all = await allMessages();
-    const title = await peerTitle(sel.value);
-    const safe = title.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 40) || 'chat';
-    if(!full) { download(`toza-${safe}.txt`, exportText(all, sel.value, title), 'text/plain;charset=utf-8'); msg.append(c.note('Tayyor: matnli fayl yuklandi.', '#2a9d4b')); return; }
-    const mids = chatMessages(all, sel.value).map((m) => m.mid);
+  const packsFor = async(all: any[], peerId: string) => {
     const packs = new Map<number, MediaPack>();
-    for(const mid of mids) {
-      const v = await archive.voiceOf(sel.value, mid), f = await archive.mediaOf(sel.value, mid);
+    for(const mid of chatMessages(all, peerId).map((m) => m.mid)) {
+      const v = await archive.voiceOf(peerId, mid), f = await archive.mediaOf(peerId, mid);
       if(v) packs.set(mid, {kind: 'voice', mime: v.mime, dur: v.dur, b64: [v.b64]});
       else if(f) packs.set(mid, {kind: f.kind, mime: f.mime, dur: f.dur, b64: f.b64, name: f.name});
     }
-    const {html, skipped} = exportHtml(all, sel.value, title, (mid) => packs.get(mid));
+    return packs;
+  };
+  const build = async(fmt: 'txt' | 'html' | 'pdf' | 'json') => {
+    msg.replaceChildren();
+    const all = await allMessages();
+    if(fmt === 'json') {
+      const ids = sel.value ? [sel.value] : [...new Set(all.filter((m) => Number(m.peerId) > 0).map((m) => m.peerId))];
+      const chats = await Promise.all(ids.map(async(peerId) => ({peerId, title: await peerTitle(peerId)})));
+      download(`toza-${sel.value ? 'chat' : 'hammasi'}-${fmtStamp(Math.floor(Date.now() / 1000)).slice(0, 10)}.json`, exportJson(all, chats), 'application/json;charset=utf-8');
+      msg.append(c.note(`Tayyor: ${chats.length} ta chat JSON faylga yozildi (matn, tahrirlar, o'chirilganlar; fayllarsiz).`, '#2a9d4b'));
+      return;
+    }
+    if(!sel.value) { msg.append(c.note('Bu format uchun bitta chatni tanlang (hamma chatlar faqat JSON).', '#d33')); return; }
+    const title = await peerTitle(sel.value);
+    const safe = title.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 40) || 'chat';
+    if(fmt === 'txt') { download(`toza-${safe}.txt`, exportText(all, sel.value, title), 'text/plain;charset=utf-8'); msg.append(c.note('Tayyor: matnli fayl yuklandi.', '#2a9d4b')); return; }
+    const packs = await packsFor(all, sel.value);
+    const {html, skipped} = exportHtml(all, sel.value, title, (mid) => packs.get(mid), fmt === 'pdf' ? {maxMediaBytes: 40_000_000} : {});
+    if(fmt === 'pdf') { printHtml(html); msg.append(c.note('Chop etish oynasida «PDF sifatida saqlash»ni tanlang.', '#2a9d4b')); return; }
     download(`toza-${safe}.html`, html, 'text/html;charset=utf-8');
     msg.append(c.note(`Tayyor: to'liq fayl yuklandi (${packs.size} ta fayl)${skipped ? `, ${skipped} ta katta fayl qo'shilmadi` : ''}.`, '#2a9d4b'));
   };
   c.show(c.title('Chatni eksport qilish'),
-    c.note('Tanlangan chatning saqlangan nusxasi bitta faylga yig\'iladi. Fayl faqat shu qurilmada yaratiladi.'), sel,
-    c.row(c.btn('Matn (.txt)', () => build(false)), c.btn('To\'liq (.html, fayllar bilan)', () => build(true), true)),
+    c.note('Saqlangan nusxa faylga yig\'iladi. Fayl faqat shu qurilmada yaratiladi. «Hamma chatlar» faqat JSON uchun.'), sel,
+    c.row(c.btn('Matn (.txt)', () => build('txt')), c.btn('To\'liq (.html, fayllar bilan)', () => build('html'), true)),
+    c.row(c.btn('PDF', () => build('pdf'), true), c.btn('JSON', () => build('json'), true)),
     msg, c.row(c.btn('Orqaga', c.back, true)));
 }
 
