@@ -79,7 +79,17 @@ export function exportText(all: ArchivedMessage[], peerId: string, title: string
   return lines.join('\n') + '\n';
 }
 
-export type MediaPack = {kind: string; mime: string; dur?: number; b64: string[]};
+export type MediaPack = {kind: string; mime: string; dur?: number; b64: string[]; name?: string};
+
+/** Eksport uchun fayl HTML'i (data: manzil bilan). */
+export function mediaHtml(pack: MediaPack, src: string): string {
+  const k = pack.kind;
+  if(k === 'photo' || (k === 'sticker' && !/webm/.test(pack.mime))) return `<img src="${src}" style="max-width:${k === 'sticker' ? '160px' : '100%'};border-radius:10px">`;
+  if(k === 'voice' || k === 'audio') return `<audio controls src="${src}"></audio>`;
+  if(k === 'file') return `<a href="${src}" download="${escHtml(pack.name || 'fayl')}">📎 ${escHtml(pack.name || 'Fayl')}</a>`;
+  if(k === 'gif' || k === 'sticker') return `<video autoplay loop muted playsinline src="${src}" style="max-width:${k === 'sticker' ? '160px' : '100%'};border-radius:10px"></video>`;
+  return `<video controls src="${src}" style="max-width:100%;border-radius:${k === 'round' ? '50%' : '10px'}"></video>`;
+}
 export const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** To'liq eksport (.html): bitta fayl, rasm/ovoz/video ichiga joylangan (data:). `maxMediaBytes` dan oshsa fayllar tashlab ketiladi. */
@@ -96,9 +106,7 @@ export function exportHtml(all: ArchivedMessage[], peerId: string, title: string
       else {
         used += size;
         const src = `data:${pack.mime};base64,${pack.b64.join('')}`;
-        media = pack.kind === 'photo' ? `<img src="${src}" style="max-width:100%;border-radius:10px">`
-          : pack.kind === 'voice' ? `<audio controls src="${src}"></audio>`
-          : `<video controls src="${src}" style="max-width:100%;border-radius:10px"></video>`;
+        media = mediaHtml(pack, escHtml(src));
       }
     }
     const text = m.text ? `<div class="t">${escHtml(m.text).replace(/\n/g, '<br>')}</div>` : (!media && m.kind ? `<div class="t i">[${escHtml(m.kind.replace('messageMedia', ''))}]</div>` : '');
@@ -113,3 +121,74 @@ export function exportHtml(all: ArchivedMessage[], peerId: string, title: string
 /** Shablonlar (tezkor javoblar): matnli, mahalliy. */
 export type Template = {id: string; title: string; text: string};
 export const newTemplate = (title: string, text: string, id = Math.random().toString(36).slice(2, 9)): Template => ({id, title: title.trim().slice(0, 40) || text.trim().slice(0, 30), text: text.trim().slice(0, 2000)});
+
+// ---------------------------------------------------------------- JSON eksport (hamma yoki tanlangan chatlar)
+export function exportJson(all: ArchivedMessage[], chats: {peerId: string; title: string}[], nowSec = Math.floor(Date.now() / 1000)): string {
+  return JSON.stringify({app: 'Toza', v: 1, exported: nowSec, chats: chats.map(({peerId, title}) => ({
+    peerId, title,
+    messages: chatMessages(all, peerId).map((m) => ({mid: m.mid, date: m.date, out: !!m.out, text: m.text, ...(m.kind ? {kind: m.kind} : {}), ...(m.edits?.length ? {edits: m.edits} : {}), ...(m.deleted ? {deleted: m.deleted} : {}), ...(m.once ? {once: true} : {})}))
+  }))}, null, 1);
+}
+
+// ---------------------------------------------------------------- kalit so'zlar
+const apos = (s: string) => s.replace(/[ʻʼ‘’`´]/g, '\'');
+/** «olma, Toshkent\nish» -> ['olma', 'toshkent', 'ish'] (takrorsiz, 2 harfdan uzun, 50 tagacha). */
+export const parseKeywords = (raw: string): string[] => [...new Set(apos(raw).split(/[,\n;]+/).map((x) => x.trim().toLocaleLowerCase()).filter((x) => x.length >= 2))].slice(0, 50);
+/** Matnda kalit so'z bormi (so'z boshidan, katta-kichik harf va tutuq belgisi farqsiz). Qaytaradi: topilgan so'z yoki ''. */
+export function matchKeyword(text: string, keywords: string[]): string {
+  if(!text || !keywords.length) return '';
+  const t = apos(text).toLocaleLowerCase();
+  for(const k of keywords) {
+    let i = t.indexOf(k);
+    while(i !== -1) {
+      if(i === 0 || !/[\p{L}\p{N}']/u.test(t[i - 1])) return k;
+      i = t.indexOf(k, i + 1);
+    }
+  }
+  return '';
+}
+
+// ---------------------------------------------------------------- lotin <-> kirill (o'zbek yozuvi)
+const L2C_DI: [string, string][] = [['o\'', 'ў'], ['g\'', 'ғ'], ['sh', 'ш'], ['ch', 'ч'], ['yo', 'ё'], ['yu', 'ю'], ['ya', 'я'], ['ye', 'е']];
+const L2C: Record<string, string> = {a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'ҳ', i: 'и', j: 'ж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'қ', r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', x: 'х', y: 'й', z: 'з', c: 'с', w: 'в', '\'': 'ъ'};
+const C2L: Record<string, string> = {а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '\'', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o\'', қ: 'q', ғ: 'g\'', ҳ: 'h'};
+const isUp = (c: string) => c !== c.toLocaleLowerCase() && c === c.toLocaleUpperCase();
+const isLetter = (c: string | undefined) => !!c && /\p{L}/u.test(c);
+const caseAs = (src: string, out: string, nextUp: boolean) => !isUp(src[0]) ? out : (src.length > 1 ? (isUp(src[1]) ? out.toLocaleUpperCase() : out[0].toLocaleUpperCase() + out.slice(1)) : (nextUp ? out.toLocaleUpperCase() : out[0].toLocaleUpperCase() + out.slice(1)));
+
+/** Lotin -> kirill. «e» so'z boshida «э»; «sh, ch, o', g', yo, yu, ya» bitta harf. Havolalar (http..., @nom) o'zgarmaydi. */
+export function latinToCyrillic(text: string): string {
+  return apos(text).split(/(\s+)/).map((w) => /^(https?:\/\/|www\.|@|#)/i.test(w) ? w : convL2C(w)).join('');
+}
+function convL2C(w: string): string {
+  let out = '';
+  for(let i = 0; i < w.length;) {
+    const lower = w.slice(i, i + 2).toLocaleLowerCase();
+    const di = L2C_DI.find(([l]) => l === lower);
+    const atStart = !isLetter(w[i - 1]);
+    if(di && !(di[0] === 'ye' && !atStart) && !(di[0] === 'yo' && w[i + 2] === '\'')) {          // «yo'l» = й + ў
+      out += caseAs(w.slice(i, i + 2), di[1], isUp(w[i + 2] || ''));
+      i += 2; continue;
+    }
+    const c = w[i], lc = c.toLocaleLowerCase();
+    const mapped = lc === 'e' && atStart ? 'э' : lc === '\'' ? (isLetter(w[i - 1]) ? 'ъ' : c) : L2C[lc];
+    out += mapped ? caseAs(c, mapped, isUp(w[i + 1] || '') && isUp(w[i - 1] || '')) : c;
+    i++;
+  }
+  return out;
+}
+
+/** Kirill -> lotin. «е» so'z boshida «ye». */
+export function cyrillicToLatin(text: string): string {
+  let out = '';
+  for(let i = 0; i < text.length; i++) {
+    const c = text[i], lc = c.toLocaleLowerCase();
+    let m = C2L[lc];
+    if(m === undefined) { out += c; continue; }
+    if(lc === 'е' && !isLetter(text[i - 1])) m = 'ye';
+    if(!m) continue;
+    out += isUp(c) ? ((isUp(text[i + 1] || '') || isUp(text[i - 1] || '')) && isLetter(text[i + 1]) || (isUp(text[i - 1] || '') && !isLetter(text[i + 1])) ? m.toLocaleUpperCase() : m[0].toLocaleUpperCase() + m.slice(1)) : m;
+  }
+  return out;
+}
+export const hasCyrillic = (s: string) => /[Ѐ-ӿ]/.test(s);

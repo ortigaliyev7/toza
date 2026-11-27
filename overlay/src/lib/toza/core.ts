@@ -85,6 +85,25 @@ export async function decryptChunk(key: CryptoKey, blob: Uint8Array): Promise<Ui
 }
 
 // ---------------------------------------------------------------- arxiv
+/** Saqlanadigan fayl turlari: rasm, dumaloq video, video, GIF (mp4), musiqa, hujjat, stiker (webp/webm). */
+export type MediaKind = 'photo' | 'round' | 'video' | 'gif' | 'audio' | 'file' | 'sticker';
+export const MEDIA_LABEL: Record<MediaKind | 'voice', string> = {photo: 'Rasm', round: 'Dumaloq video', video: 'Video', gif: 'GIF', audio: 'Musiqa', file: 'Fayl', sticker: 'Stiker', voice: 'Ovozli xabar'};
+
+/** Hujjat turi -> saqlanadigan fayl turi. Animatsiyali (.tgs) stiker saqlanmaydi: uni brauzer o'zi ko'rsata olmaydi. */
+export function docKind(doc: any): MediaKind | 'voice' | null {
+  if(!doc) return null;
+  switch(doc.type) {
+    case 'voice': return 'voice';
+    case 'round': return 'round';
+    case 'video': return 'video';
+    case 'gif': return 'gif';
+    case 'audio': return 'audio';
+    case 'sticker': return doc.sticker === 2 ? null : 'sticker';
+    case 'photo': return 'photo';
+    default: return 'file';
+  }
+}
+
 export type ArchivedMessage = {
   k: string;                       // `${peerId}:${mid}`
   peerId: string;
@@ -96,8 +115,9 @@ export type ArchivedMessage = {
   kind?: string;                   // media turi (matnsiz xabar uchun)
   edits?: {t: number; text: string}[]; // oldingi versiyalar
   deleted?: number;                // o'chirilgan vaqt (sekund)
+  once?: true;                     // bir martalik (ko'rilgach yo'qoladigan) rasm/video edi
   voice?: {mime: string; dur: number; b64: string}; // ovozli xabar (faqat `v:` yozuvlarida): kichik, bir marta yuklanadi
-  media?: {kind: 'photo' | 'round' | 'video'; mime: string; dur: number; i: number; n: number; b64: string}; // rasm / dumaloq video bo'lagi (faqat `m:` yozuvlarida)
+  media?: {kind: MediaKind; mime: string; dur: number; i: number; n: number; b64: string; name?: string}; // fayl bo'lagi (faqat `m:` yozuvlarida); `name` — hujjat nomi
   u: number;                       // oxirgi o'zgarish vaqti (ms) — birlashtirishda yangisi yutadi
 };
 
@@ -117,7 +137,7 @@ export const isMediaKey = (k: string) => k.startsWith('m:');
 /** Matn emas, fayl yozuvi (ovoz/rasm/video): xabarlar ro'yxati va hisoblarda alohida. */
 export const isBlobKey = (k: string) => isVoiceKey(k) || isMediaKey(k);
 export const MEDIA_PART_BYTES = 700_000;           // bitta yozuvdagi xom bayt (base64 ~933 KB: bitta bo'lakka sig'adi)
-export const MEDIA_MAX_BYTES = {photo: 5_000_000, round: 15_000_000, video: 25_000_000};
+export const MEDIA_MAX_BYTES: Record<MediaKind, number> = {photo: 5_000_000, round: 15_000_000, video: 25_000_000, gif: 8_000_000, audio: 15_000_000, file: 10_000_000, sticker: 1_000_000};
 export const VOICE_MAX_BYTES = 1_000_000;         // bundan katta ovoz saqlanmaydi (taxminan 2-3 daqiqa)
 
 export interface ArchiveStore {
@@ -149,10 +169,10 @@ export function mergeMessage(a: ArchivedMessage, b: ArchivedMessage): ArchivedMe
   const seen = new Set<string>();
   const edits = [...(old.edits || []), ...(cur.edits || [])].filter((e) => { const id = e.t + '|' + e.text; return seen.has(id) ? false : (seen.add(id), true); }).sort((x, y) => x.t - y.t);
   const deleted = [a.deleted, b.deleted].filter(Boolean).sort((x, y) => x! - y!)[0];
-  return {...cur, edits: edits.length ? edits : undefined, deleted, kind: cur.kind || old.kind};
+  return {...cur, edits: edits.length ? edits : undefined, deleted, kind: cur.kind || old.kind, ...(a.once || b.once ? {once: true as const} : {})};
 }
 
-export type Incoming = {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean; text: string; kind?: string};
+export type Incoming = {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean; text: string; kind?: string; once?: boolean};
 
 /** Mahalliy arxiv mantiqi (rootScope'ga bog'liq emas): yangi xabar, tahrir, o'chirish. */
 export class Archive {
@@ -167,7 +187,8 @@ export class Archive {
   async capture(m: Incoming): Promise<'new' | 'edited' | 'same'> {
     const k = keyOf(m.peerId, m.mid);
     const prev = await this.store.get(k);
-    const base = {k, peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: m.text, kind: m.kind, u: this.now()};
+    const base: ArchivedMessage = {k, peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: m.text, kind: m.kind || prev?.kind, u: this.now()};
+    if(m.once || prev?.once) base.once = true;                                        // ko'rilgach media yo'qoladi: belgi saqlanib qoladi
     if(!prev) {
       await this.store.put(base, true);
       return 'new';
@@ -186,20 +207,21 @@ export class Archive {
     return true;
   }
 
-  /** Rasm yoki dumaloq videoni bo'laklab saqlaydi (bir marta). Qaytaradi: saqlandimi (katta bo'lsa yoki bor bo'lsa — yo'q). */
-  async captureMedia(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, kind: 'photo' | 'round' | 'video', mime: string, dur: number, bytes: Uint8Array): Promise<boolean> {
-    if(!bytes.length || bytes.length > MEDIA_MAX_BYTES[kind]) return false;
+  /** Faylni (rasm, video, GIF, musiqa, hujjat, stiker) bo'laklab saqlaydi (bir marta). Qaytaradi: saqlandimi (katta bo'lsa yoki bor bo'lsa — yo'q). */
+  async captureMedia(m: {peerId: string | number; mid: number; date: number; from?: string | number; out?: boolean}, kind: MediaKind, mime: string, dur: number, bytes: Uint8Array, name?: string): Promise<boolean> {
+    if(!bytes.length || !MEDIA_MAX_BYTES[kind] || bytes.length > MEDIA_MAX_BYTES[kind]) return false;
+    const fname = name ? String(name).slice(0, 120) : undefined;
     if(await this.store.get(mediaKey(m.peerId, m.mid, 0))) return false;
     const n = Math.ceil(bytes.length / MEDIA_PART_BYTES);
     for(let i = 0; i < n; i++) {
       const part = bytes.subarray(i * MEDIA_PART_BYTES, (i + 1) * MEDIA_PART_BYTES);
-      await this.store.put({k: mediaKey(m.peerId, m.mid, i), peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: '', kind: 'media-blob', media: {kind, mime, dur, i, n, b64: toBase64(part)}, u: this.now()}, true);
+      await this.store.put({k: mediaKey(m.peerId, m.mid, i), peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.from !== undefined ? String(m.from) : undefined, out: m.out, text: '', kind: 'media-blob', media: {kind, mime, dur, i, n, b64: toBase64(part), ...(fname && i === 0 ? {name: fname} : {})}, u: this.now()}, true);
     }
     return true;
   }
 
-  /** Saqlangan rasm/dumaloq video: hamma bo'laklar bo'lsa birlashtirib qaytaradi, aks holda undefined. */
-  async mediaOf(peerId: string | number, mid: number): Promise<{kind: 'photo' | 'round' | 'video'; mime: string; dur: number; b64: string[]} | undefined> {
+  /** Saqlangan fayl: hamma bo'laklar bo'lsa birlashtirib qaytaradi, aks holda undefined. */
+  async mediaOf(peerId: string | number, mid: number): Promise<{kind: MediaKind; mime: string; dur: number; b64: string[]; name?: string} | undefined> {
     const first = (await this.store.get(mediaKey(peerId, mid, 0)))?.media;
     if(!first) return undefined;
     const b64: string[] = [first.b64];
@@ -208,7 +230,7 @@ export class Archive {
       if(!part) return undefined;
       b64.push(part.b64);
     }
-    return {kind: first.kind, mime: first.mime, dur: first.dur, b64};
+    return {kind: first.kind, mime: first.mime, dur: first.dur, b64, ...(first.name ? {name: first.name} : {})};
   }
 
   async voiceOf(peerId: string | number, mid: number) {
@@ -234,6 +256,11 @@ export class Archive {
     const keys = (await this.store.all()).filter((m) => m.peerId === String(peerId)).map((m) => m.k);
     await this.store.remove(keys);
     return keys.length;
+  }
+
+  /** Saqlangan bir martalik media xabarlari (yangisi birinchi). */
+  async onceMessages(): Promise<ArchivedMessage[]> {
+    return (await this.store.all()).filter((x) => x.once && !isBlobKey(x.k)).sort((x, y) => y.date - x.date);
   }
 
   async deletedMessages(): Promise<ArchivedMessage[]> {

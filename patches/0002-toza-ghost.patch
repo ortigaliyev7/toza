@@ -1,0 +1,126 @@
+diff --git a/src/components/dialogsContextMenu.ts b/src/components/dialogsContextMenu.ts
+index 9e99a34..e006a8b 100644
+--- a/src/components/dialogsContextMenu.ts
++++ b/src/components/dialogsContextMenu.ts
+@@ -651,7 +651,7 @@ export default class DialogsContextMenu {
+       if(!this.threadId) {
+         managers.appMessagesManager.markDialogUnread({peerId, read: true});
+       } else {
+-        managers.appMessagesManager.readHistory({peerId, maxId: dialog.top_message, threadId: this.threadId});
++        managers.appMessagesManager.readHistory({peerId, maxId: dialog.top_message, threadId: this.threadId, force: true});
+       }
+     } else if(!this.threadId) {
+       managers.appMessagesManager.markDialogUnread({peerId});
+diff --git a/src/lib/appManagers/appMessagesManager.ts b/src/lib/appManagers/appMessagesManager.ts
+index af7e961..6329c03 100644
+--- a/src/lib/appManagers/appMessagesManager.ts
++++ b/src/lib/appManagers/appMessagesManager.ts
+@@ -129,6 +129,7 @@ import getFolderPinLimitType from '@appManagers/utils/dialogs/getFolderPinLimitT
+ // TODO: если удалить диалог находясь в папке, то он не удалится из папки и будет виден в настройках
+ 
+ const DO_NOT_READ_HISTORY = false;
++import {tozaFlags} from '@lib/toza/flags';
+ const DO_NOT_SEND_MESSAGES = false;
+ const SEND_MESSAGES_TO_PAID_QUEUE = false;
+ const DO_NOT_DELETE_MESSAGES = false;
+@@ -10125,6 +10126,9 @@ export class AppMessagesManager extends AppManager {
+       return Promise.resolve();
+     }
+ 
++    // * Toza: ko'rinmas rejimda faqat mahalliy o'qiladi, serverga «o'qildi» yuborilmaydi (foydalanuvchi o'zi «O'qilgan deb belgilash» bossa — yuboriladi)
++    const tozaLocalOnly = tozaFlags.noRead && !force;
++
+     if(maxId && (
+       this.isEphemeralMessageId(maxId) ||
+       this.isEphemeralMessage(this.getMessageByPeer(peerId, maxId))
+@@ -10181,7 +10185,7 @@ export class AppMessagesManager extends AppManager {
+     // user can scroll into messages whose mid <= a previously-read maxId
+     // (e.g. messages loaded later, or scrolling up after a fast jump to bottom).
+     // Without this, the unread counter "freezes" mid-scroll on high-volume chats.
+-    const skipServerCall = historyStorage.triedToReadMaxId >= maxId || !!historyStorage.readPromise;
++    const skipServerCall = tozaLocalOnly || historyStorage.triedToReadMaxId >= maxId || !!historyStorage.readPromise;
+ 
+     let apiPromise: Promise<any>;
+     if(monoforumThreadId) {
+@@ -10543,7 +10547,7 @@ export class AppMessagesManager extends AppManager {
+   }
+ 
+   public readMessages(peerId: PeerId, msgIds: number[]) {
+-    if(DO_NOT_READ_HISTORY) {
++    if(DO_NOT_READ_HISTORY || tozaFlags.noRead) {
+       return Promise.resolve();
+     }
+ 
+@@ -15227,6 +15231,10 @@ export class AppMessagesManager extends AppManager {
+     force?: boolean,
+     threadId?: number
+   ): Promise<boolean> {
++    if(tozaFlags.noTyping) {
++      return false;
++    }
++
+     threadId = this.getTypingThreadId(peerId, threadId);
+ 
+     const key = this.getTypingKey(peerId, threadId);
+diff --git a/src/lib/appManagers/appStoriesManager.ts b/src/lib/appManagers/appStoriesManager.ts
+index e6ab5ee..37e1be4 100644
+--- a/src/lib/appManagers/appStoriesManager.ts
++++ b/src/lib/appManagers/appStoriesManager.ts
+@@ -27,6 +27,7 @@ import StoriesCacheType from '@appManagers/utils/stories/cacheType';
+ import insertStory from '@appManagers/utils/stories/insertStory';
+ import {makeStoryLink} from '@appManagers/utils/stories/storyLink';
+ import canPollPeerStories, {PEER_STORIES_POLL_INTERVAL} from '@appManagers/utils/stories/canPollPeerStories';
++import {tozaFlags} from '@lib/toza/flags';
+ 
+ type MyStoryItem = Exclude<StoryItem, StoryItem.storyItemDeleted>;
+ 
+@@ -1970,7 +1971,7 @@ export default class AppStoriesManager extends AppManager {
+       max_id: maxId
+     });
+ 
+-    if(TEST_READ) {
++    if(TEST_READ || tozaFlags.noStoryView) {
+       return;
+     }
+ 
+@@ -1984,6 +1985,10 @@ export default class AppStoriesManager extends AppManager {
+   }
+ 
+   public incrementStoryViews(peerId: PeerId, ids: StoryItem['id'][]) {
++    if(tozaFlags.noStoryView) {
++      return Promise.resolve(true);
++    }
++
+     return this.apiManager.invokeApiSingleProcess({
+       method: 'stories.incrementStoryViews',
+       params: {
+diff --git a/src/lib/appManagers/appUsersManager.ts b/src/lib/appManagers/appUsersManager.ts
+index 670d479..2a88fc2 100644
+--- a/src/lib/appManagers/appUsersManager.ts
++++ b/src/lib/appManagers/appUsersManager.ts
+@@ -33,6 +33,8 @@ import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
+ import pause from '@helpers/schedulers/pause';
+ import createSerializedQueue from '@helpers/createSerializedQueue';
+ import type {State} from '@config/state';
++import {tozaFlags} from '@lib/toza/flags';
++import type {TozaFlags} from '@lib/toza/flags';
+ 
+ export type User = MTUser.user;
+ const TOP_PEER_TYPES = ['correspondents', 'bots_inline', 'bots_app', 'bots_guestchat'] as const;
+@@ -1534,7 +1536,16 @@ export class AppUsersManager extends AppManager {
+     }
+   }
+ 
++  /** Toza: ko'rinmas rejim sozlamalari (asosiy oynadan). */
++  public setTozaFlags(flags: Partial<TozaFlags>) {
++    Object.assign(tozaFlags, flags);
++    if(flags.noOnline) {
++      this.updateMyOnlineStatus(true);
++    }
++  }
++
+   public updateMyOnlineStatus(offline: boolean) {
++    offline ||= tozaFlags.noOnline;
+     // * an account a tab has just switched to may not have loaded itself yet
+     const self = this.getSelf();
+     self && this.setUserStatus(self.id, offline);

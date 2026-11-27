@@ -336,3 +336,83 @@ test('Sharpa bo\'limlari: qurilma tokeni olinadi', async () => {
   await sync.init();
   assert.deepEqual(await sync.device(), {k: 'dev-token-123', url: 'https://sharpa.test/v2/'});
 });
+
+import {MEDIA_LABEL} from '../overlay/src/lib/toza/core.ts';
+import {mediaHtml} from '../overlay/src/lib/toza/tools-core.ts';
+
+test('fayllar: hujjat nomi bilan saqlanadi va qaytadi, har tur o\'z chegarasida, noma\'lum tur rad etiladi', async () => {
+  const arc = new Archive(new MemoryStore());
+  const bytes = new Uint8Array(1500).fill(9);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 1, date: 1}, 'file', 'application/pdf', 0, bytes, 'hisobot.pdf'), true);
+  const f = await arc.mediaOf(5, 1);
+  assert.equal(f.kind, 'file'); assert.equal(f.name, 'hisobot.pdf'); assert.equal(f.mime, 'application/pdf');
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 2, date: 1}, 'sticker', 'image/webp', 0, new Uint8Array(MEDIA_MAX_BYTES.sticker + 1)), false);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 3, date: 1}, 'gif', 'video/mp4', 0, bytes), true);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 4, date: 1}, 'audio', 'audio/mpeg', 200, bytes, 'qo\'shiq.mp3'), true);
+  assert.equal(await arc.captureMedia({peerId: 5, mid: 5, date: 1}, 'nomalum', 'x/y', 0, bytes), false);
+  assert.equal((await arc.mediaOf(5, 3)).name, undefined);
+  const long = 'a'.repeat(300) + '.txt';
+  await arc.captureMedia({peerId: 5, mid: 6, date: 1}, 'file', 'text/plain', 0, bytes, long);
+  assert.equal((await arc.mediaOf(5, 6)).name.length, 120);
+  for(const k of ['photo', 'round', 'video', 'gif', 'audio', 'file', 'sticker', 'voice']) assert.ok(MEDIA_LABEL[k]);
+});
+
+test('eksport HTML: har bir fayl turi to\'g\'ri teg bilan, fayl nomi xavfsiz', () => {
+  assert.match(mediaHtml({kind: 'photo', mime: 'image/jpeg', b64: []}, 'S'), /^<img /);
+  assert.match(mediaHtml({kind: 'sticker', mime: 'image/webp', b64: []}, 'S'), /^<img /);
+  assert.match(mediaHtml({kind: 'sticker', mime: 'video/webm', b64: []}, 'S'), /^<video autoplay loop muted/);
+  assert.match(mediaHtml({kind: 'gif', mime: 'video/mp4', b64: []}, 'S'), /^<video autoplay loop muted/);
+  assert.match(mediaHtml({kind: 'audio', mime: 'audio/mpeg', b64: []}, 'S'), /^<audio /);
+  assert.match(mediaHtml({kind: 'voice', mime: 'audio/ogg', b64: []}, 'S'), /^<audio /);
+  assert.match(mediaHtml({kind: 'video', mime: 'video/mp4', b64: []}, 'S'), /^<video controls/);
+  const a = mediaHtml({kind: 'file', mime: 'application/pdf', b64: [], name: '"><script>x</script>.pdf'}, 'S');
+  assert.match(a, /^<a href="S" download="/); assert.doesNotMatch(a, /<script>/);
+  const all = [{k: '9:1', peerId: '9', mid: 1, date: 1, text: '', kind: 'messageMediaDocument', u: 1}];
+  const {html} = exportHtml(all, '9', 'T', () => ({kind: 'file', mime: 'application/pdf"onload="x', b64: ['QUJD'], name: 'a.pdf'}));
+  assert.doesNotMatch(html, /"onload="/);
+  assert.match(html, /download="a.pdf"/);
+});
+
+import {docKind} from '../overlay/src/lib/toza/core.ts';
+test('hujjat turi: ovoz, video, GIF, musiqa, stiker (.tgs emas), oddiy fayl', () => {
+  assert.equal(docKind({type: 'voice'}), 'voice'); assert.equal(docKind({type: 'round'}), 'round'); assert.equal(docKind({type: 'video'}), 'video');
+  assert.equal(docKind({type: 'gif'}), 'gif'); assert.equal(docKind({type: 'audio'}), 'audio'); assert.equal(docKind({type: 'pdf'}), 'file');
+  assert.equal(docKind({type: 'sticker', sticker: 1}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 3}), 'sticker'); assert.equal(docKind({type: 'sticker', sticker: 2}), null);
+  assert.equal(docKind({}), 'file'); assert.equal(docKind(undefined), null);
+});
+
+import {latinToCyrillic, cyrillicToLatin, parseKeywords, matchKeyword, exportJson} from '../overlay/src/lib/toza/tools-core.ts';
+test('lotin <-> kirill', () => {
+  assert.equal(latinToCyrillic('Salom, qalaysan? Shahar o\'zgardi, g\'isht, choy'), 'Салом, қалайсан? Шаҳар ўзгарди, ғишт, чой');
+  assert.equal(latinToCyrillic('Ertaga yer, yangi yo\'l, yulduz'), 'Эртага ер, янги йўл, юлдуз');
+  assert.equal(latinToCyrillic('TOSHKENT oʻzbek ma\'no'), 'ТОШКЕНТ ўзбек маъно');
+  assert.equal(latinToCyrillic('https://t.me/abc @user'), 'https://t.me/abc @user');
+  assert.equal(cyrillicToLatin('Салом, қалайсан? Шаҳар ўзгарди, ғишт, чой'), 'Salom, qalaysan? Shahar o\'zgardi, g\'isht, choy');
+  assert.equal(cyrillicToLatin('Ер, янги йўл, юлдуз, Эртага'), 'Yer, yangi yo\'l, yulduz, Ertaga');
+  assert.equal(cyrillicToLatin('ТОШКЕНТ'), 'TOSHKENT');
+  assert.equal(cyrillicToLatin('Шаҳар'), 'Shahar');
+});
+test('kalit so\'zlar: ajratish va so\'z boshidan topish', () => {
+  const k = parseKeywords('Olma, toshkent\n ish;a, olma');
+  assert.deepEqual(k, ['olma', 'toshkent', 'ish']);
+  assert.equal(matchKeyword('Ertaga TOSHKENTga boraman', k), 'toshkent');
+  assert.equal(matchKeyword('Kishi keldi', ['ish']), '');
+  assert.equal(matchKeyword('Yangi ish bor', ['ish']), 'ish');
+  assert.equal(matchKeyword('oʻzbek', ['o\'zbek']), 'o\'zbek');
+  assert.equal(matchKeyword('', k), '');
+});
+test('JSON eksport', () => {
+  const all = [{k: '1:2', peerId: '1', mid: 2, date: 5, text: 'b', u: 1, deleted: 9}, {k: '1:1', peerId: '1', mid: 1, date: 4, text: 'a', out: true, u: 1, edits: [{t: 1, text: 'x'}]}, {k: 'm:1:1:0', peerId: '1', mid: 1, date: 4, text: '', u: 1}];
+  const j = JSON.parse(exportJson(all, [{peerId: '1', title: 'Ali'}], 100));
+  assert.equal(j.exported, 100); assert.equal(j.chats[0].title, 'Ali');
+  assert.deepEqual(j.chats[0].messages.map((m) => m.text), ['a', 'b']);
+  assert.equal(j.chats[0].messages[1].deleted, 9); assert.equal(j.chats[0].messages[0].edits.length, 1);
+});
+test('bir martalik media: belgi tahrirdan keyin ham qoladi', async () => {
+  const arc = new Archive(new MemoryStore());
+  await arc.capture({peerId: 1, mid: 1, date: 1, text: '', kind: 'messageMediaPhoto', once: true});
+  await arc.capture({peerId: 1, mid: 1, date: 1, text: 'x', kind: undefined});
+  const list = await arc.onceMessages();
+  assert.equal(list.length, 1); assert.equal(list[0].kind, 'messageMediaPhoto');
+  assert.equal(mergeMessage({...list[0], once: undefined, u: 5}, {...list[0], u: 1}).once, true);
+});

@@ -1,9 +1,10 @@
 import {ensureStyle} from './style';
+import {mediaNode, mediaTitle} from './media-view';
 import {alertsOn, setAlertsOn} from './alerts';
 import {viewExport, viewLock, viewSearch, viewStats, viewTemplates} from './tools';
 import type {Ctx} from './tools';
 import {fmtDuration} from './alerts';
-import {archive, chatEnabled, gaps, purgeChat, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
+import {archive, backfillState, chatEnabled, gaps, purgeChat, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
   bad_code: 'Kod noto\'g\'ri yozilgan. 26 belgi bo\'lishi kerak (harf va 2–7 raqamlari).',
@@ -112,7 +113,8 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
     if(!g.length) return h('div');
     return h('div', {style: 'margin:10px 0;padding:10px;border-radius:12px;background:rgba(240,160,30,.15);font-size:13px;'},
       h('b', {}, 'Toza yopiq bo\'lgan vaqtlar'),
-      h('div', {style: 'opacity:.85;margin:4px 0;'}, 'Shu paytlarda kelib o\'chirilgan xabarlarning matni saqlanmagan bo\'lishi mumkin. To\'liq qamrov uchun Toza\'ni ochiq qoldiring yoki Arxiv seyfini yoqing.'),
+      h('div', {style: 'opacity:.85;margin:4px 0;'}, 'Toza ochilganda shu paytlarda kelgan xabarlar chat tarixidan o\'zi saqlanadi. Lekin Toza yopiqligida kelib, o\'sha zahoti o\'chirilganlarini qaytarib bo\'lmaydi.'),
+      ...(backfillState.at ? [h('div', {style: 'opacity:.85;margin:4px 0;'}, `Oxirgi to'ldirish: ${backfillState.chats} ta chat, ${backfillState.saved} ta yangi xabar saqlandi.`)] : []),
       ...g.map((x) => h('div', {}, `${fmtDate(Math.floor(x.from / 1000))} → ${fmtDate(Math.floor(x.to / 1000))} (${fmtDuration(x.to - x.from)})`)));
   }
 
@@ -152,7 +154,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       toolsRow(),
       alertRow(),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Matn bepul saqlanadi. Rasm, video va ovozli xabar faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
+      note('Matn bepul saqlanadi. Fayllar (rasm, video, ovoz, GIF, musiqa, hujjat, stiker) faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       gapNote(),
@@ -202,11 +204,10 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       const voice = await archive.voiceOf(m.peerId, m.mid);
       const player = voice ? [Object.assign(h('audio', {style: 'width:100%;margin-top:4px;'}), {controls: true, preload: 'none', src: URL.createObjectURL(new Blob([Uint8Array.from(atob(voice.b64), (c) => c.charCodeAt(0))], {type: voice.mime}))})] : [];
       const fileM = await archive.mediaOf(m.peerId, m.mid);
-      const toBlob = (parts: string[], mime: string) => URL.createObjectURL(new Blob(parts.map((x) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0))), {type: mime}));
-      const fileEl = fileM ? [fileM.kind === 'photo' ? Object.assign(h('img', {style: 'max-width:100%;border-radius:10px;margin-top:4px;'}), {src: toBlob(fileM.b64, fileM.mime)}) : Object.assign(h('video', {style: fileM.kind === 'round' ? 'max-width:240px;width:100%;border-radius:50%;margin-top:4px;aspect-ratio:1/1;object-fit:cover;' : 'max-width:100%;border-radius:10px;margin-top:4px;'}), {controls: true, preload: 'none', src: toBlob(fileM.b64, fileM.mime)})] : [];
+      const fileEl = fileM ? [mediaNode(fileM)] : [];
       list.append(h('div', {style: 'padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);'},
         h('div', {style: 'font-size:12px;opacity:.7'}, `${titles.get(m.peerId)} · ${fmtDate(m.date)} · o'chirilgan ${fmtDate(m.deleted!)}`),
-        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : fileM ? (fileM.kind === 'photo' ? 'Rasm' : fileM.kind === 'round' ? 'Dumaloq video' : 'Video') : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
+        h('div', {style: 'white-space:pre-wrap;word-break:break-word;'}, m.text || (voice ? `Ovozli xabar${voice.dur ? ` (${voice.dur} s)` : ''}` : fileM ? mediaTitle(fileM) : m.kind ? `[${m.kind.replace('messageMedia', '')}]` : '')),
         ...player,
         ...fileEl,
         ...(m.edits?.length ? [h('div', {style: 'font-size:12px;opacity:.7'}, `Tahrirlangan (${m.edits.length}): oldingi: ` + m.edits.map((e) => e.text).join(' → '))] : [])));

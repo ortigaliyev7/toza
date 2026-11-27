@@ -1,14 +1,15 @@
 // O'chirilgan xabarlarni chat tarixining O'Z JOYIGA qaytaradi (saqlangan nusxadan): bubblelar orasida «ko'lanka» blok.
 // tweb DOM: `.bubbles-inner > .bubbles-date-group > .bubbles-group > .bubble[data-mid][data-peer-id]`. Ko'lanka guruhlar ORASIGA qo'yiladi
 // (guruh ichiga emas), shuning uchun tweb'ning guruhlash/avatar/animatsiya mantiqiga tegmaydi; `.bubble` klassi yo'q — tweb uni o'z ro'yxatlariga olmaydi.
-import type {ArchivedMessage} from './core';
+import type {ArchivedMessage, MediaKind} from './core';
+import {mediaNode} from './media-view';
 
 export const GHOST_ATTR = 'data-toza-ghost';
 
 export type GhostDeps = {
   records: () => Promise<ArchivedMessage[]>;
   voiceOf: (peerId: string, mid: number) => Promise<{mime: string; dur: number; b64: string} | undefined>;
-  mediaOf: (peerId: string, mid: number) => Promise<{kind: string; mime: string; dur: number; b64: string[]} | undefined>;
+  mediaOf: (peerId: string, mid: number) => Promise<{kind: MediaKind; mime: string; dur: number; b64: string[]; name?: string} | undefined>;
   enabled: (peerId: string) => boolean;
 };
 
@@ -50,11 +51,7 @@ async function buildGhost(rec: ArchivedMessage, deps: GhostDeps): Promise<HTMLEl
   else if(!voice && !file && rec.kind) { const t = document.createElement('div'); t.setAttribute('style', 'font-style:italic;opacity:.75;'); t.textContent = `[${rec.kind.replace('messageMedia', '')}]`; el.append(t); }
   for(const e of rec.edits || []) { const t = document.createElement('div'); t.setAttribute('style', 'font-size:12px;opacity:.65;margin-top:2px;'); t.textContent = 'Oldingi: ' + e.text; el.append(t); }
   if(voice) { const a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.style.cssText = 'width:100%;margin-top:4px;'; a.src = URL.createObjectURL(new Blob([b64bytes(voice.b64)], {type: voice.mime})); el.append(a); }
-  if(file) {
-    const url = URL.createObjectURL(new Blob(file.b64.map(b64bytes), {type: file.mime}));
-    if(file.kind === 'photo') { const i = document.createElement('img'); i.src = url; i.style.cssText = 'max-width:100%;border-radius:8px;margin-top:4px;'; el.append(i); }
-    else { const v = document.createElement('video'); v.controls = true; v.preload = 'none'; v.src = url; v.style.cssText = file.kind === 'round' ? 'width:200px;height:200px;border-radius:50%;object-fit:cover;margin-top:4px;' : 'max-width:100%;border-radius:8px;margin-top:4px;'; el.append(v); }
-  }
+  if(file) el.append(mediaNode(file));
   return el;
 }
 
@@ -74,7 +71,7 @@ export async function injectGhosts(deps: GhostDeps, root: ParentNode = document)
       for(const rec of dead) {
         const el = await buildGhost(rec, deps);
         if(placeGhost(c, el, rec.mid)) placed++;
-        else el.querySelectorAll('audio,video,img').forEach((m: any) => URL.revokeObjectURL(m.src));
+        else el.querySelectorAll('audio,video,img,a[download]').forEach((m: any) => URL.revokeObjectURL(m.src || m.href));
       }
     }
   } catch{ /* ko'lanka muhim emas: chat buzilmasin */ }

@@ -40,7 +40,7 @@ export function openTozaProfile() {
       isEnabled() ? line('✅', 'Zaxira yoqilgan') : line('⚪', 'Zaxira o\'chiq', 'Menyudan «Toza zaxira» orqali yoqing'),
       localStorage.getItem('toza_lock') ? line('🔒', 'PIN qulf yoqilgan') : line('🔓', 'PIN qulf yoqilmagan'),
       alertsOn() ? line('🔔', 'O\'chirilgan va tahrirlangan haqida xabar') : line('🔕', 'Xabar berish o\'chiq'),
-      isPaid() ? line('⭐', 'Obuna ulangan', 'Rasm, video va ovoz ham saqlanadi') : line('📝', 'Faqat matn saqlanadi')
+      isPaid() ? line('⭐', 'Obuna ulangan', 'Rasm, video, ovoz, hujjat va boshqa fayllar ham saqlanadi') : line('📝', 'Faqat matn saqlanadi')
     ];
     stat.replaceChildren(...rows);
     if(isEnabled()) {
