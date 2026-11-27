@@ -1,6 +1,7 @@
 // Toza sozlamalari oynasi (chap menyu → «Toza sozlamalari»): ko'rinmas rejim, bir martalik media, hikoyalarni saqlash,
 // kalit so'zlar, lotin/kirill. Hammasi shu brauzerda saqlanadi.
 import rootScope from '@lib/rootScope';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import appDownloadManager from '@lib/appDownloadManager';
 import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
 import getPeerId from '@lib/appManagers/utils/peers/getPeerId';
@@ -21,6 +22,8 @@ import {playerPrefs, setPlayerPrefs} from './player';
 import {featureOn, setFeature} from './features';
 import {animPrefs, previewAnim, setAnimPrefs} from './anim';
 import {profileDesignView} from './design';
+import {hasPin, hiddenPeers} from './hidden';
+import {loadTpl} from './templates';
 import type {AnimPrefs, AnimSpeed, AnimStyle} from './anim';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
@@ -142,6 +145,11 @@ export function openTozaSettings() {
         nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce()),
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
       sec('Vositalar',
+        nav('download', 'Media yuklab olish', 'Chatdagi rasm, video, fayllarni bitta ZIP qilib', () => viewMediaCenter()),
+        nav('chat', 'Tezkor javob shablonlari', `${loadTpl().length} ta shablon · yozish maydonidagi 💬 tugma`, () => viewTemplatesTab()),
+        nav('ghost', 'Maxfiy chatlar', hasPin() ? `PIN bilan · ${hiddenPeers().length} ta chat` : 'Chatni ro\'yxatdan yashirib, PIN bilan ochish', () => viewHidden()),
+        nav('tune', 'Chat papkalari', 'Telegram papkalari: Shaxsiy, Ish, Kanallar…', () => openFolders()),
+        nav('spark', 'Statistika', 'Vaqt, xabarlar, ko\'p yozishadiganlar', () => viewUsage()),
         nav('contacts', 'Kontaktlarni tozalash', 'Uzoq kirmagan, o\'chirilgan akkaunt, chat yo\'q…', () => { close(); import('./contacts').then((m) => m.openContactsCleaner(() => openTozaSettings())); }),
         nav('users', 'Kanal va guruhlarni tozalash', 'Uzoq ochilmagan, o\'qilmagan, jim qolgan…', () => { close(); import('./chats-clean').then((m) => m.openChatsCleaner(() => openTozaSettings())); })),
       sec('Ko\'rish',
@@ -154,6 +162,8 @@ export function openTozaSettings() {
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
         check('Bosib turib yozish', 'Telefonda: mikrofonni bosib turing — yoziladi, qo\'yib yuboring — yuboriladi, chapga suring — bekor, tepaga — qulflash. Qisqa bosish: ovoz ↔ dumaloq video.', () => featureOn('holdrec'), (v) => setFeature('holdrec', v), 'mic'),
+        check('Shablon tugmasi', 'Yozish maydoni yonidagi 💬: tezkor javob shablonlari.', () => featureOn('tplbtn'), (v) => setFeature('tplbtn', v), 'chat'),
+        check('Statistika yig\'ish', 'Toza\'da o\'tkazilgan vaqt va xabarlar soni. Faqat shu qurilmada.', () => featureOn('usage'), (v) => setFeature('usage', v), 'spark'),
         check('Dumaloq videoda kamera almashtirish', 'Yozayotganda old/orqa kamera tugmasi.', () => featureOn('roundcam'), (v) => setFeature('roundcam', v), 'flip'),
         h('div', {className: 'tz-hint'}, 'Ko\'rinmas rejim, ko\'z asrash va lotin/kirill yuqoridagi o\'z bo\'limlarida o\'chiriladi.')),
       sec('Qulayliklar',
@@ -161,9 +171,35 @@ export function openTozaSettings() {
         nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),
       sec('Telegram\'ning o\'zida',
         info('translate', 'Tarjima', 'Xabarni bosib turing → «Tarjima qilish»'),
-        info('users', 'Akkauntlar va papkalar', 'Menyu → akkaunt qo\'shish (3 tagacha); Sozlamalar → Chat papkalari'),
+        info('users', 'Akkauntlar', 'Menyu → akkaunt qo\'shish (3 tagacha)'),
         info('palette', 'Ko\'rinish', 'Rang: «Toza profilim». Shrift, fon, tungi rejim: Sozlamalar → Umumiy'))
     );
+  }
+
+  function viewMediaCenter() {
+    const box = h('div', {}, 'Yuklanmoqda…');
+    sub('Media yuklab olish', box);
+    import('./media-center').then((m) => box.replaceChildren(m.mediaCenterView(note))).catch((e) => box.replaceChildren(note('Ochib bo\'lmadi: ' + (e?.message || e), '#d33')));
+  }
+  function viewTemplatesTab() {
+    const box = h('div', {}, 'Yuklanmoqda…');
+    sub('Tezkor javob shablonlari', box);
+    import('./templates').then((m) => box.replaceChildren(m.templatesView(note)));
+  }
+  function viewHidden() {
+    const box = h('div', {}, 'Yuklanmoqda…');
+    sub('Maxfiy chatlar', box);
+    import('./hidden').then((m) => box.replaceChildren(m.hiddenView(note)));
+  }
+  function viewUsage() {
+    const box = h('div', {}, 'Yuklanmoqda…');
+    sub('Statistika', box);
+    import('./usage').then((m) => box.replaceChildren(m.usageView(note, () => { close(); import('./ui').then((u) => u.openTozaBackup(undefined, 'stats')); })));
+  }
+  function openFolders() {
+    close();
+    const g: any = hotReloadGuard;
+    try { const sl = g.appSidebarLeft; sl.closeEverythingInside?.(); setTimeout(() => sl.createTab(g.AppChatFoldersTab).open(g.AppChatFoldersTab.getInitArgs()), 200); } catch{ /* tweb o'zgargan */ }
   }
 
   async function viewOnce() {

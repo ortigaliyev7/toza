@@ -2,6 +2,15 @@
   {
     "date": "2026-11-27",
     "items": [
+      "📥 Media yuklab olish: chatdagi rasm, video, fayl va ovozli xabarlarni turi va davri bo'yicha tanlab, bitta ZIP qilib yuklab olasiz. Toza sozlamalari → Vositalar.",
+      "💬 Tezkor javob shablonlari: yozish maydoni yonidagi tugma. Shablonni tanlasangiz matn o'zi tushadi, yozib turgan matnni ham shablon qilib saqlash mumkin.",
+      "🔒 Maxfiy chatlar: tanlangan chatlar ro'yxatdan yashirinadi va faqat PIN bilan ochiladi. Chat papkalari ham shu yerdan ochiladi.",
+      "📊 Statistika: Toza'da o'tkazilgan vaqt, yuborilgan va kelgan xabarlar, ko'p yozishadiganlaringiz. Faqat shu qurilmada saqlanadi."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "⭐ Toza Premium: Toza yopiq bo'lsa ham o'chirilgan va tahrirlangan xabarlar ushlanadi. «Premium yoqish» Sharpa botida tarif oynasini ochadi. Obunasiz faqat Toza ochiq paytdagi xabarlar ushlanadi. Toza sozlamalari → Toza Premium."
     ]
   },

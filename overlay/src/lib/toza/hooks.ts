@@ -19,6 +19,9 @@ import {startRoundCamera} from './roundcam';
 import {startHoldRecord} from './holdrec';
 import {startAnim} from './anim';
 import {startMobileNav} from './mobile';
+import {startHidden} from './hidden';
+import {startTemplates} from './templates';
+import {startUsage} from './usage';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -388,6 +391,7 @@ export function startTozaBackup() {
   try { startEyeCare(); } catch{ /* ko'z asrash muhim emas */ }     // darrov: ekran bir lahza yorqin bo'lib ketmasin
   try { startAnim(); } catch{ /* animatsiyalar muhim emas */ }
   try { startMobileNav(); } catch{ /* pastki panel muhim emas */ }
+  startHidden().catch((): void => undefined);                     // darrov: maxfiy chatlar ro'yxatda bir lahza ham ko'rinmasin
   // Qolganlari chatlar ro'yxati chizilgandan keyin, brauzer bo'sh turganda: ilova tezroq ochiladi
   later(() => {
     try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
@@ -396,6 +400,8 @@ export function startTozaBackup() {
     try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
     try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
     try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+    try { startTemplates(); } catch{ /* shablon tugmasi muhim emas */ }
+    startUsage().catch((): void => undefined);
     import('./biz').then((m) => m.startBiz()).catch((): void => undefined);     // Sharpa (Business) orqali Toza yopiq paytda ushlanganlar
   });
   // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.

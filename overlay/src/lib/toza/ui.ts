@@ -31,7 +31,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
 const BTN = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--ac,#4A5AE8);color:#fff;';
 const BTN2 = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:rgba(127,127,127,.18);color:inherit;';
 
-export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'history') {
+export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'history' | 'stats') {
   startTozaBackup();
   ensureStyle();
   const back = h('div', {className: 'tz-back'});
@@ -276,7 +276,8 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
   }
 
   const sub = (t: string, ...k: Node[]) => show(title(t), ...k, row(btn('Orqaga', () => viewOn(), true)));
-  if(view && watching()) {
+  if(view === 'stats') viewStats(ctx);
+  else if(view && watching()) {
     const list = h('div');
     if(view === 'chats') { sub('Chatlar boshqaruvi', list); showChats(list); }
     else { sub('Xavfsizlik tarixi', alertRow(), gapNote(), list); showDeleted(list); }

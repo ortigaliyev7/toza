@@ -2,7 +2,8 @@
 // Hammasi brauzer ichida: matn serverga yuborilmaydi (zaxira nol bilim bo'lib qoladi).
 import {archive, peerTitle, store as archiveStore} from './hooks';
 import {chatMessages, computeStats, exportHtml, exportJson, exportText, fmtStamp, newTemplate, searchArchive} from './tools-core';
-import type {MediaPack, Template} from './tools-core';
+import type {MediaPack} from './tools-core';
+import {insertIntoComposer, loadTpl, saveTpl} from './templates';
 
 export type Ctx = {
   h: (tag: any, props?: any, ...kids: (Node | string)[]) => any;
@@ -140,18 +141,6 @@ export async function viewExport(c: Ctx) {
 }
 
 // ---------------------------------------------------------------- shablonlar
-const LS_TPL = 'toza_templates';
-const loadTpl = (): Template[] => { try { const a = JSON.parse(localStorage.getItem(LS_TPL) || '[]'); return Array.isArray(a) ? a : []; } catch{ return []; } };
-const saveTpl = (l: Template[]) => localStorage.setItem(LS_TPL, JSON.stringify(l.slice(0, 50)));
-
-/** Ochiq chatning yozish maydoniga matn qo'yadi (bo'lmasa nusxalaydi). */
-function insertIntoComposer(text: string): boolean {
-  const el = document.querySelector('.chat-input [contenteditable="true"], .input-message-input[contenteditable="true"]') as HTMLElement | null;
-  if(!el) return false;
-  el.focus();
-  return document.execCommand('insertText', false, text);
-}
-
 export function viewTemplates(c: Ctx) {
   const list = c.h('div');
   const msg = c.h('div');
