@@ -46,7 +46,7 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-chev{flex:none;color:var(--tx2);opacity:.7}
 .tz-ic.tz-soft{background:var(--acbg);color:var(--ac);box-shadow:none}
 .tz-hint{color:var(--tx2);font:500 12.5px/1.4 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif);margin:6px 2px 0}
-.tz-pop textarea{font:500 15px/1.4 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif)!important;border-radius:16px!important;background:var(--in)!important;border:1px solid var(--cb)!important;padding:12px 14px!important;color:var(--tx)!important;outline:none;width:100%;box-sizing:border-box;resize:vertical}
+.tz-pop textarea{font:500 15px/1.4 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif)!important;border-radius:16px!important;background:var(--in)!important;border:1px solid var(--cb)!important;padding:12px 14px!important;color:var(--tx)!important;outline:none;width:calc(100% - 36px);box-sizing:border-box;resize:vertical;display:block}
 .tz-pop textarea:focus{border-color:var(--ac)!important;box-shadow:0 0 0 3px var(--acbg)}
 .tz-upd{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99998;display:flex;align-items:center;gap:10px;width:min(440px,calc(100vw - 24px));box-sizing:border-box;padding:10px 10px 10px 12px;border-radius:20px;background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border:1px solid var(--border-color,#dfe1e5);box-shadow:0 8px 26px rgba(0,0,0,.22);font:500 13.5px/1.35 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif);animation:tzp .2s ease-out}
 .tz-upd-ic{flex:none;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;color:#fff;background:var(--primary-color,#3390ec)}
@@ -54,6 +54,9 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-upd button{flex:none;height:34px;border:0;border-radius:12px;padding:0 12px;font:700 13px/1 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif);cursor:pointer}
 .tz-upd-go{background:var(--primary-color,#3390ec);color:#fff}
 .tz-upd-later{background:var(--background-color,#f4f4f5);color:var(--primary-text-color,#000)}
+.tz-seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--in);margin:4px 0 6px}
+.tz-pop .tz-seg button{flex:1;height:38px!important;border-radius:11px!important;background:transparent!important;box-shadow:none!important;color:var(--tx2)!important;font-weight:600!important;padding:0 6px!important}
+.tz-pop .tz-seg button.on{background:var(--btn)!important;color:#fff!important}
 `;
 export function ensureStyle() {
   if(document.getElementById('tz-style')) return;

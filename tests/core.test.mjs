@@ -416,3 +416,21 @@ test('bir martalik media: belgi tahrirdan keyin ham qoladi', async () => {
   assert.equal(list.length, 1); assert.equal(list[0].kind, 'messageMediaPhoto');
   assert.equal(mergeMessage({...list[0], once: undefined, u: 5}, {...list[0], u: 1}).once, true);
 });
+
+import {isUzbekCyrillic, isUzbekLatin, toScript} from '../overlay/src/lib/toza/tools-core.ts';
+test('o\'zbekcha aniqlash: rus va ingliz matni o\'zgarmaydi', () => {
+  assert.equal(isUzbekCyrillic('Салом, қалайсан?'), true);
+  assert.equal(isUzbekCyrillic('Бугун уйга бораман ва дам оламан'), true);
+  assert.equal(isUzbekCyrillic('Привет, как дела?'), false);
+  assert.equal(isUzbekCyrillic('Спасибо, всё хорошо'), false);
+  assert.equal(isUzbekLatin('Assalomu alaykum aka yaxshimisiz'), true);
+  assert.equal(isUzbekLatin('Qayerdasan?'), false);
+  assert.equal(isUzbekLatin('Men hozir boraman'), true);
+  assert.equal(isUzbekLatin('o\'zbek tili'), true);
+  assert.equal(isUzbekLatin('Hello, how are you doing today?'), false);
+  assert.equal(isUzbekLatin('See you tomorrow'), false);
+  assert.equal(toScript('Привет', 'lat'), 'Привет');
+  assert.equal(toScript('Салом, қалайсан?', 'lat'), 'Salom, qalaysan?');
+  assert.equal(toScript('Men hozir boraman', 'cyr'), 'Мен ҳозир бораман');
+  assert.equal(toScript('Good morning', 'cyr'), 'Good morning');
+});

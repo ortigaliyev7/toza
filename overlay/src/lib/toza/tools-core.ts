@@ -192,3 +192,32 @@ export function cyrillicToLatin(text: string): string {
   return out;
 }
 export const hasCyrillic = (s: string) => /[Ѐ-ӿ]/.test(s);
+
+// ---------------------------------------------------------------- o'zbekcha matnni aniqlash (rus/ingliz matnini buzmaslik uchun)
+const UZ_CYR_ONLY = /[ўқғҳЎҚҒҲ]/;
+const UZ_CYR_WORDS = /(^|[^\p{L}])(ва|бу|мен|сен|бир|учун|билан|ҳам|эмас|нима|қандай|керак|бор|йўқ|яхши|рахмат|раҳмат|ассалому|салом|қалай|сиз|биз|улар|шу|ўша|энди|ҳозир|кейин|олдин|катта|кичик|бугун|эртага)(?=$|[^\p{L}])/giu;
+const RU_ONLY = /[ыщэъЫЩЭЪ]|(^|[^\p{L}])(что|это|как|так|не|на|он|она|они|мы|вы|да|нет|привет|спасибо|хорошо|когда|где|почему|который|только|если|уже|очень)(?=$|[^\p{L}])/iu;
+const UZ_LAT_MARK = /[oOgG]['ʻʼ‘’`]|(^|[^\p{L}])\p{L}*q\p{L}*/u;
+const UZ_LAT_WORDS = /(^|[^\p{L}'])(va|bu|men|sen|bir|uchun|bilan|ham|emas|nima|qanday|kerak|bor|yo'q|yaxshi|rahmat|assalomu|salom|qalay|siz|biz|ular|shu|o'sha|endi|hozir|keyin|oldin|katta|kichik|bugun|ertaga|edi|ekan|bo'ldi|qildi|aka|opa|xop|xo'p|mayli)(?=$|[^\p{L}'])/giu;
+const count = (re: RegExp, s: string) => (s.match(re) || []).length;
+
+/** Kirillcha matn o'zbekchami (rus emasmi): o'zbekcha harflar (ў қ ғ ҳ) yoki o'zbekcha so'zlar bor, ruscha belgilar yo'q. */
+export function isUzbekCyrillic(text: string): boolean {
+  if(!/[Ѐ-ӿ]/.test(text)) return false;
+  if(UZ_CYR_ONLY.test(text)) return true;
+  if(RU_ONLY.test(text)) return false;
+  return count(UZ_CYR_WORDS, text) >= 1;
+}
+/** Lotincha matn o'zbekchami (ingliz emasmi): o' / g' / q harfi yoki kamida ikkita o'zbekcha so'z. */
+export function isUzbekLatin(text: string): boolean {
+  if(!/[a-z]/i.test(text) || /[Ѐ-ӿ]/.test(text)) return false;
+  const t = apos(text);
+  const words = count(UZ_LAT_WORDS, t);
+  if(/[og]'/i.test(t)) return true;
+  return words >= 2 || (words >= 1 && UZ_LAT_MARK.test(t));
+}
+/** Ko'rsatish uchun: tanlangan yozuvga o'giradi, faqat o'zbekcha bo'lsa (aks holda o'zgarmaydi). */
+export function toScript(text: string, to: 'lat' | 'cyr'): string {
+  if(to === 'lat') return isUzbekCyrillic(text) ? cyrillicToLatin(text) : text;
+  return isUzbekLatin(text) ? latinToCyrillic(text) : text;
+}
