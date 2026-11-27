@@ -19,6 +19,7 @@ import {eyeCareActive} from './tools-core';
 import {playerPrefs, setPlayerPrefs} from './player';
 import {featureOn, setFeature} from './features';
 import {animPrefs, previewAnim, setAnimPrefs} from './anim';
+import {profileDesignView} from './design';
 import type {AnimPrefs, AnimSpeed, AnimStyle} from './anim';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
@@ -142,7 +143,8 @@ export function openTozaSettings() {
       sec('Ko\'rish',
         nav('eye', 'Ko\'z asrash', eyeSummary(), () => viewEyeCare()),
         nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer()),
-        nav('spark', 'Animatsiyalar', animSummary(), () => viewAnim())),
+        nav('spark', 'Animatsiyalar', animSummary(), () => viewAnim()),
+        nav('palette', 'Profil dizayni', 'Ism rangi va profil rangi', () => viewDesign())),
       sec('Qo\'shimchalarni yoqish/o\'chirish',
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
@@ -249,6 +251,12 @@ export function openTozaSettings() {
       h('div', {className: 'tz-sec'}, h('b', {}, 'Xiralashtirish'),
         choice<number>([[0, 'Yo\'q'], [1, 'Oz'], [2, 'O\'rta'], [3, 'Ko\'p']], () => eyeCare().dim, (v) => upd({dim: v as any})),
         h('div', {className: 'tz-hint'}, 'Telefon yorqinligi eng pastda bo\'lsa ham ekran ko\'zni qamashtirsa foydali.')));
+  }
+
+  async function viewDesign() {
+    const box = h('div', {}, 'Yuklanmoqda…');
+    sub('Profil dizayni', box);
+    try { box.replaceChildren(await profileDesignView(note)); } catch(e: any) { box.replaceChildren(note('Ochib bo\'lmadi: ' + (e?.type || e?.message || e), '#d33')); }
   }
 
   function viewAnim() {
