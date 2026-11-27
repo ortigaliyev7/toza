@@ -2,6 +2,12 @@
   {
     "date": "2026-11-27",
     "items": [
+      "Yangi: Profil dizayni. Toza sozlamalari → Ko'rish → «Profil dizayni»da ism rangi va profil (muqova) rangini telefondagi Telegram kabi tanlash mumkin. Profil rangi va ko'p ism ranglari uchun Telegram Premium kerak."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "Toza tezroq ochiladi: fayllar ancha kichik hajmda yuklanadi, qo'shimcha funksiyalar esa chatlar ro'yxati chiqqandan keyin ishga tushadi.",
       "Yangi versiya chiqqanda uning fayllari fonda oldindan yuklab qo'yiladi, shuning uchun «Yangilash»dan keyin ilova darrov ochiladi."
     ]

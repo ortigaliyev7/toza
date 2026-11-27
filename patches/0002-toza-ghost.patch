@@ -95,7 +95,7 @@ index e6ab5ee..37e1be4 100644
        method: 'stories.incrementStoryViews',
        params: {
 diff --git a/src/lib/appManagers/appUsersManager.ts b/src/lib/appManagers/appUsersManager.ts
-index 670d479..2a88fc2 100644
+index 670d479..f4e305f 100644
 --- a/src/lib/appManagers/appUsersManager.ts
 +++ b/src/lib/appManagers/appUsersManager.ts
 @@ -33,6 +33,8 @@ import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
@@ -124,3 +124,18 @@ index 670d479..2a88fc2 100644
      // * an account a tab has just switched to may not have loaded itself yet
      const self = this.getSelf();
      self && this.setUserStatus(self.id, offline);
+@@ -1632,6 +1643,14 @@ export class AppUsersManager extends AppManager {
+     });
+   }
+ 
++  // * Toza: profil dizayni (ism rangi va profil rangi). Web K'da bu oyna yo'q, Toza sozlamalaridan chaqiriladi
++  public tozaUpdateColor(forProfile: boolean, color?: number, backgroundEmojiId?: DocId) {
++    return this.apiManager.invokeApi('account.updateColor', {
++      for_profile: forProfile || undefined,
++      color: color === undefined ? undefined : {_: 'peerColor', color, background_emoji_id: backgroundEmojiId}
++    }).then(() => this.getApiUsers([this.userId]));
++  }
++
+   public getDefaultEmojiStatuses() {
+     return this.defaultEmojiStatuses ??= forgetFailedRequest(this.apiManager.invokeApiSingleProcess({
+       method: 'account.getDefaultEmojiStatuses',
