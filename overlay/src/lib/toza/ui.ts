@@ -63,6 +63,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
     show(
       title('O\'chirilgan va tahrirlangan'),
       watchRow(),
+      bizRow(),
       row(btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true)),
       alertRow(),
       list,
@@ -136,6 +137,35 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       onclick: () => { if(isEnabled()) return; on = !on; setWatching(on); paint(); }});
   }
 
+  /** Toza yopiq bo'lsa ham: Sharpa boti (Telegram Business) orqali. */
+  function bizRow() {
+    const box = h('div', {style: 'margin:10px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);'} as any);
+    const errMsg = (e: any) => { const t = String(e?.message || e); return t === 'no_server' ? 'Sharpa manzili sozlanmagan (VITE_TB_URL).' : t === 'timeout' ? 'Bot javob bermadi. Birozdan keyin yana urinib ko\'ring.' : t === 'no_bot' ? 'Sharpa botini topib bo\'lmadi.' : 'Ulab bo\'lmadi: ' + t; };
+    const paint = async() => {
+      const m = await import('./biz');
+      const st = m.bizState;
+      const head = h('div', {style: 'font-weight:600'} as any, 'Toza yopiq bo\'lsa ham ushlash');
+      const msg = h('div');
+      if(!st.linked) {
+        box.replaceChildren(head,
+          h('div', {style: 'font-size:12px;opacity:.75;margin:4px 0 8px'} as any, 'Sharpa boti xabarlarni doim ushlab turadi: telefon yoki Toza yopiq bo\'lsa ham. Toza ochilganda ular chatda ko\'rinadi. Telegram Premium kerak.'),
+          row(btn('Sharpa\'ga ulash', async(b) => { b.textContent = 'Ulanmoqda…'; msg.replaceChildren(); try { await m.connectSharpa(); await paint(); } catch(e) { b.textContent = 'Sharpa\'ga ulash'; msg.append(note(errMsg(e), '#d33')); } })),
+          msg);
+        return;
+      }
+      if(st.connected === undefined) await m.pullBiz();
+      const bot = '@' + String(st.bot || 'sharpa').replace(/^@/, '');
+      const status = st.connected ?
+        note(`Ishlayapti. ${st.lastPull ? 'Oxirgi tekshiruv: hozirgina' + (st.added ? `, ${st.added} ta yangi yozuv.` : '.') : ''}`, '#2a9d4b') :
+        note(`Yana bir qadam: Telegram → Sozlamalar → Telegram Business → Chat-botlar → ${bot} ni qo'shing. Shundan keyin ${bot} xabarlarni ushlay boshlaydi.`, '#e8860c');
+      box.replaceChildren(head, status, ...(st.error ? [note('Xato: ' + st.error, '#d33')] : []),
+        row(btn('Tekshirish', async() => { await m.pullBiz(); await paint(); }, true),
+          btn('Uzish', async() => { m.disconnectSharpa(); await paint(); }, true)), msg);
+    };
+    paint();
+    return box;
+  }
+
   function alertRow() {
     let on = alertsOn();
     const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
@@ -169,6 +199,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
       watchRow(),
+      bizRow(),
       h('b', {}, 'Imkoniyatlar'),
       toolsRow(),
       alertRow(),

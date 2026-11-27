@@ -509,3 +509,19 @@ test('kanal/guruhlar: toifalar va saralash', () => {
   assert.equal(T.agoText(now - 3 * D, now), '3 kun oldin');
   assert.equal(T.agoText(now - 70 * D, now), '2 oy oldin');
 });
+
+test('mergeBiz: Sharpa yozuvlari arxivga qo\'shiladi, Toza ma\'lumoti ustiga yozilmaydi', async() => {
+  const {mergeBiz} = await import('../overlay/src/lib/toza/core.ts');
+  const base = {chat: 5, mid: 10, kind: 'text', date: 100, out: false, text: 'salom', prev: null, locked: false, deleted: 200, edited: null};
+  const r = mergeBiz(undefined, base, 1);
+  assert.equal(r.k, '5:10'); assert.equal(r.text, 'salom'); assert.equal(r.deleted, 200); assert.equal(r.from, '5');
+  assert.equal(mergeBiz(r, base, 2), null);                                                   // ikkinchi marta: o'zgarish yo'q
+  assert.equal(mergeBiz(undefined, {...base, locked: true}, 1), null);
+  assert.equal(mergeBiz(undefined, {...base, chat: -100}, 1), null);
+  const ed = mergeBiz({k: '5:11', peerId: '5', mid: 11, date: 100, text: 'eski', u: 0}, {...base, mid: 11, text: 'yangi', prev: 'eski', deleted: null, edited: 150}, 3);
+  assert.equal(ed.text, 'yangi'); assert.deepEqual(ed.edits, [{t: 150, text: 'eski'}]);
+  assert.equal(mergeBiz(ed, {...base, mid: 11, text: 'yangi', prev: 'eski', deleted: null, edited: 150}, 4), null);
+  const kept = mergeBiz({k: '5:10', peerId: '5', mid: 10, date: 100, text: 'Toza ko\'rgan', deleted: 190, u: 0}, base, 5);
+  assert.equal(kept, null);                                                                  // Toza o'zi belgilagan: tegmaydi
+  assert.equal(mergeBiz(undefined, {...base, kind: 'photo', text: ''}, 1).kind, 'messageMediaPhoto');
+});

@@ -279,6 +279,9 @@ function scheduleGhosts(delay = 500) {
   }, delay);
 }
 
+/** Tashqaridan (Sharpa) yangi yozuvlar qo'shilganda: chatdagi ko'lankalar va belgi yangilansin. */
+export function refreshGhosts() { scheduleGhosts(200); updateBadge(); }
+
 // ---- Ochiq chatdagi o'chirilgan xabarlar belgisi: bosilsa shu chatning o'chirilganlari ro'yxati ochiladi
 let currentPeer = '';
 let badgeEl: HTMLElement | null = null;
@@ -393,6 +396,7 @@ export function startTozaBackup() {
     try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
     try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
     try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+    import('./biz').then((m) => m.startBiz()).catch((): void => undefined);     // Sharpa (Business) orqali Toza yopiq paytda ushlanganlar
   });
   // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.
   // «Offlayn» o'chiq bo'lsa, darrov «onlayn» bo'lamiz (avval «offlayn» yuborilgan bo'lsa ham qolib ketmasin).

@@ -406,3 +406,28 @@ export async function restoreInto(sync: Sync, archive: Archive): Promise<{messag
   const changed = await archive.importAll(list);
   return {messages: changed, deleted: list.filter((m) => m.deleted).length};
 }
+
+// ---- Sharpa (Telegram Business) yozuvlari: Toza yopiq paytda bot ushlagan o'chirilgan/tahrirlangan xabarlar
+export type BizItem = {chat: number; mid: number; kind: string; date: number; out: boolean; text: string | null; prev: string | null; locked: boolean; deleted: number | null; edited: number | null};
+const BIZ_KIND: Record<string, string> = {photo: 'messageMediaPhoto', voice: 'messageMediaDocument', video_note: 'messageMediaDocument', video: 'messageMediaDocument', sticker: 'messageMediaDocument', document: 'messageMediaDocument'};
+/** Sharpa'dan kelgan bitta yozuvni Toza arxiviga qo'shadi. Qaytaradi: o'zgardimi. Toza o'zi ushlagan ma'lumot ustun (ustiga yozilmaydi). */
+export function mergeBiz(prev: ArchivedMessage | undefined, it: BizItem, now: number): ArchivedMessage | null {
+  if(it.locked || it.chat <= 0) return null;
+  const cur = it.text ?? '', old = it.prev ?? undefined;
+  const peerId = String(it.chat);
+  const rec: ArchivedMessage = prev ? {...prev} : {
+    k: keyOf(peerId, it.mid), peerId, mid: it.mid, date: it.date, from: it.out ? undefined : peerId, out: it.out,
+    text: cur, kind: it.kind && it.kind !== 'text' ? (BIZ_KIND[it.kind] || 'messageMediaDocument') : undefined, u: now
+  };
+  let changed = !prev;
+  if(it.edited && old !== undefined && old !== cur && !(rec.edits || []).some((e) => e.text === old)) {
+    rec.edits = [...(rec.edits || []), {t: it.edited, text: old}];
+    rec.text = cur;
+    changed = true;
+  }
+  if(it.deleted && !rec.deleted) { rec.deleted = it.deleted; changed = true; }
+  if(!changed) return null;
+  rec.u = now;
+  return rec;
+}
+
