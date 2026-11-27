@@ -18,6 +18,8 @@ import {eyeCare, setEyeCare} from './eyecare';
 import {eyeCareActive} from './tools-core';
 import {playerPrefs, setPlayerPrefs} from './player';
 import {featureOn, setFeature} from './features';
+import {animPrefs, previewAnim, setAnimPrefs} from './anim';
+import type {AnimPrefs, AnimSpeed, AnimStyle} from './anim';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
   const el = document.createElement(tag);
@@ -63,6 +65,10 @@ function choice<T extends string | number>(opts: [T, string][], get: () => T, se
 const eyeSummary = () => {
   const e = eyeCare();
   return e.mode === 'off' ? 'O\'chiq' : e.mode === 'on' ? 'Doim yoqilgan' : `Kechqurun ${String(e.from).padStart(2, '0')}:00 – ${String(e.to).padStart(2, '0')}:00`;
+};
+const animSummary = () => {
+  const p = animPrefs();
+  return p.on ? `${({soft: 'Yumshoq', pop: 'Sakrash', slide: 'Surilish'} as Record<AnimStyle, string>)[p.style]} · ${({slow: 'sekin', normal: 'o\'rtacha', fast: 'tez'} as Record<AnimSpeed, string>)[p.speed]}` : 'O\'chiq';
 };
 const scriptSummary = () => {
   const n: Record<Script, string> = {off: '', lat: 'lotinda', cyr: 'kirillda'};
@@ -135,7 +141,8 @@ export function openTozaSettings() {
         nav('users', 'Kanal va guruhlarni tozalash', 'Uzoq ochilmagan, o\'qilmagan, jim qolgan…', () => { close(); import('./chats-clean').then((m) => m.openChatsCleaner(() => openTozaSettings())); })),
       sec('Ko\'rish',
         nav('eye', 'Ko\'z asrash', eyeSummary(), () => viewEyeCare()),
-        nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer())),
+        nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer()),
+        nav('spark', 'Animatsiyalar', animSummary(), () => viewAnim())),
       sec('Qo\'shimchalarni yoqish/o\'chirish',
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
@@ -242,6 +249,35 @@ export function openTozaSettings() {
       h('div', {className: 'tz-sec'}, h('b', {}, 'Xiralashtirish'),
         choice<number>([[0, 'Yo\'q'], [1, 'Oz'], [2, 'O\'rta'], [3, 'Ko\'p']], () => eyeCare().dim, (v) => upd({dim: v as any})),
         h('div', {className: 'tz-hint'}, 'Telefon yorqinligi eng pastda bo\'lsa ham ekran ko\'zni qamashtirsa foydali.')));
+  }
+
+  function viewAnim() {
+    const demo = h('div', {className: 'tz-an-demo'});
+    const play = () => {
+      demo.replaceChildren();
+      ['Salom!', 'Animatsiya shunday ko\'rinadi'].forEach((t, i) => {
+        const b = h('div', {className: 'bubble'}, h('div', {className: 'bubble-content-wrapper'}, t));
+        demo.append(b);
+        setTimeout(() => previewAnim(b), 60 + i * 140);
+      });
+    };
+    const set = (p: Partial<AnimPrefs>) => { setAnimPrefs(p); play(); };
+    const part = (k: 'msg' | 'btn' | 'list' | 'pop', ic: string, label: string, s: string) => check(label, s, () => animPrefs()[k], (v) => set({[k]: v}), ic);
+    sub('Animatsiyalar',
+      check('Animatsiyalar', 'Yengil jonlantirish. Telegram\'da «Animatsiyalar» o\'chiq bo\'lsa yoki telefonda «harakatni kamaytirish» yoqilgan bo\'lsa ishlamaydi.', () => animPrefs().on, (v) => set({on: v}), 'spark'),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Uslub'),
+        choice<AnimStyle>([['soft', 'Yumshoq'], ['pop', 'Sakrash'], ['slide', 'Surilish']], () => animPrefs().style, (v) => set({style: v})),
+        h('b', {}, 'Tezlik'),
+        choice<AnimSpeed>([['slow', 'Sekin'], ['normal', 'O\'rtacha'], ['fast', 'Tez']], () => animPrefs().speed, (v) => set({speed: v})),
+        demo,
+        row(btn('Yana ko\'rsatish', () => play()))),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Qayerda'),
+        part('msg', 'chat', 'Yangi xabar', 'Kelgan xabar chatda jonlanib chiqadi.'),
+        part('btn', 'tune', 'Tugmalar', 'Bosganda tugma biroz kichrayadi, kalitlar sakrab o\'tadi.'),
+        part('list', 'users', 'Chatlar ro\'yxati', 'Chatni bosganda yengil bosilish effekti.'),
+        part('pop', 'spark', 'Toza oynalari', 'Sozlamalar, yangilanish xabari va belgilash qatori chiqishi.'))
+    );
+    play();
   }
 
   function viewPlayer() {

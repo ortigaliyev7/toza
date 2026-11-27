@@ -90,7 +90,29 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-hold-lock{background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border-radius:20px;padding:10px 8px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-size:15px;line-height:1.3;white-space:pre;text-align:center;transition:transform .05s}
 .tz-hold-cancel{background:var(--surface-color,#fff);color:var(--secondary-text-color,#707579);border-radius:16px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,.2);font-size:14px;white-space:nowrap}
 .tz-hold-toast{transform:translateX(-50%);background:rgba(0,0,0,.78);color:#fff;border-radius:16px;padding:8px 14px;font-size:14px;white-space:nowrap}
-.btn-send.tz-holding{transform:scale(1.35);transition:transform .15s}
+.btn-send.tz-holding{transition:transform .15s}
+.btn-send.tz-holding{transform:scale(1.35)!important}
+@keyframes tz-soft{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes tz-pop{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:none}}
+@keyframes tz-slide{from{opacity:0;transform:translateX(calc(-28px * var(--reflect, 1)))}to{opacity:1;transform:none}}
+.tz-an-soft{--tz-kf:tz-soft;--tz-ease:cubic-bezier(.2,.8,.2,1)}
+.tz-an-pop{--tz-kf:tz-pop;--tz-ease:cubic-bezier(.3,1.4,.5,1)}
+.tz-an-slide{--tz-kf:tz-slide;--tz-ease:cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:no-preference){
+.tz-an-msg body:not(.animation-level-0) .bubble.tz-new .bubble-content-wrapper{animation:var(--tz-kf) calc(.34s * var(--tz-k, 1)) var(--tz-ease) both;transform-origin:0 100%}
+.tz-an body:not(.animation-level-0) .tz-an-demo .tz-new .bubble-content-wrapper{animation:var(--tz-kf) calc(.34s * var(--tz-k, 1)) var(--tz-ease) both;transform-origin:0 100%}
+.tz-an-btn body:not(.animation-level-0) :is(.btn-icon,.btn-circle,.btn-primary,.tz-main,.tz-chips button,.tz-seg button,.tz-selbar button){transition:transform calc(.12s * var(--tz-k, 1)) ease-out}
+.tz-an-btn body:not(.animation-level-0) :is(.btn-icon,.btn-circle,.btn-primary,.tz-main,.tz-chips button,.tz-seg button,.tz-selbar button):active{transform:scale(.9)}
+.tz-an-btn body:not(.animation-level-0) .tz-sw::after{transition:transform calc(.22s * var(--tz-k, 1)) cubic-bezier(.3,1.4,.5,1),background-color .2s}
+.tz-an-list body:not(.animation-level-0) .chatlist-chat{transition:transform calc(.16s * var(--tz-k, 1)) ease-out}
+.tz-an-list body:not(.animation-level-0) .chatlist-chat:active{transform:scale(.97)}
+.tz-an-list body:not(.animation-level-0) .tz-row.tz-click:active{transform:scale(.98)}
+.tz-an-pop-on body:not(.animation-level-0) .tz-pop,.tz-an-pop-on body:not(.animation-level-0) .tz-selbar.in,.tz-an-pop-on body:not(.animation-level-0) .tz-upd{animation:var(--tz-kf) calc(.3s * var(--tz-k, 1)) var(--tz-ease) both}
+.tz-an-pop-on body:not(.animation-level-0) .tz-back{animation:tz-fade calc(.2s * var(--tz-k, 1)) ease-out both}
+}
+@keyframes tz-fade{from{opacity:0}to{opacity:1}}
+.tz-an-demo{display:flex;gap:8px;align-items:flex-end;padding:10px 0}
+.tz-an-demo .bubble-content-wrapper{background:var(--message-background-color,var(--surface-color,#fff));border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:14px 14px 14px 4px;padding:8px 12px}
 .video-recording-stage--playing .tz-flip{display:none}
 .tz-backcam .video-recording-preview{transform:none!important}
 .tz-hud{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:16px;background:rgba(0,0,0,.62);color:#fff;font:500 15px/1.2 var(--font-regular,system-ui,sans-serif);opacity:0;pointer-events:none;transition:opacity .18s;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
