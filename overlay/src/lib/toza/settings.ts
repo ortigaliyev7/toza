@@ -5,6 +5,7 @@ import appDownloadManager from '@lib/appDownloadManager';
 import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
 import getPeerId from '@lib/appManagers/utils/peers/getPeerId';
 import {ensureStyle} from './style';
+import {bizState} from './biz';
 import {archive, watching, setWatching, peerTitle, updateReadButton} from './hooks';
 import {getFlags, keywordsOn, keywordsRaw, saveOnceOn, setFlags, setKeywords, setKeywordsOn, setSaveOnce} from './prefs';
 import type {TozaFlags} from './flags';
@@ -132,6 +133,7 @@ export function openTozaSettings() {
     const kwOn = keywordsOn(), kwN = parseKeywords(keywordsRaw()).length;
     show(
       title('Toza sozlamalari'),
+      sec('Toza Premium', nav('spark', 'Toza Premium', bizState.paid ? 'Yoqilgan · Toza yopiq bo\'lsa ham ishlaydi' : 'Toza yopiq bo\'lsa ham ishlashi uchun · Sharpa botida', () => { close(); import('./ui').then((m) => m.openTozaBackup()); })),
       sec('Ko\'rinmas rejim', ...ghostRows, h('div', {className: 'tz-hint'}, 'Dastlabki uchtasi bosh ekranda ham bor. Telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.')),
       sec('Saqlash',
         check('O\'chirilgan va tahrirlangan xabarlar', 'Bepul. Shaxsiy chatlarda boshqalar o\'chirgan xabar o\'z joyida qoladi, tahrirlanganining eski matni ostida ko\'rinadi.', watching, setWatching, 'trash'),

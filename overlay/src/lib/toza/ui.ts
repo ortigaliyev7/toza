@@ -137,30 +137,41 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       onclick: () => { if(isEnabled()) return; on = !on; setWatching(on); paint(); }});
   }
 
-  /** Toza yopiq bo'lsa ham: Sharpa boti (Telegram Business) orqali. */
+  /** Toza Premium: Toza yopiq bo'lsa ham ushlash — Sharpa boti (Telegram Business) va Sharpa obunasi orqali. */
   function bizRow() {
-    const box = h('div', {style: 'margin:10px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);'} as any);
+    const box = h('div', {style: 'margin:10px 0;padding:12px;border-radius:12px;background:linear-gradient(135deg,rgba(120,90,255,.16),rgba(255,160,60,.14));'} as any);
     const errMsg = (e: any) => { const t = String(e?.message || e); return t === 'no_server' ? 'Sharpa manzili sozlanmagan (VITE_TB_URL).' : t === 'timeout' ? 'Bot javob bermadi. Birozdan keyin yana urinib ko\'ring.' : t === 'no_bot' ? 'Sharpa botini topib bo\'lmadi.' : 'Ulab bo\'lmadi: ' + t; };
+    const date = (t: number) => new Date(t * 1000).toLocaleDateString('uz-UZ', {day: 'numeric', month: 'long', year: 'numeric'});
+    const small = (t: string) => h('div', {style: 'font-size:12px;opacity:.8;margin:4px 0'} as any, t);
     const paint = async() => {
       const m = await import('./biz');
       const st = m.bizState;
-      const head = h('div', {style: 'font-weight:600'} as any, 'Toza yopiq bo\'lsa ham ushlash');
       const msg = h('div');
+      const buy = (label: string) => btn(label, async(b) => { msg.replaceChildren(); try { close(); await m.openPremium(); } catch(e) { b.textContent = label; msg.append(note(errMsg(e), '#d33')); } });
+      if(st.linked && st.connected === undefined) await m.pullBiz();
+      const head = h('div', {style: 'font-weight:700;font-size:15px'} as any, st.paid ? '⭐ Toza Premium yoqilgan' : '⭐ Toza Premium');
+      const what = small('Premium bilan Toza yopiq bo\'lsa ham (telefon o\'chiq bo\'lsa ham) o\'chirilgan va tahrirlangan xabarlar ushlanadi: Sharpa boti ularni doim saqlab turadi, Toza ochilganda chatda ko\'rinadi. Obuna Sharpa botida olinadi.');
+      const free = small('Obunasiz: faqat Toza ochiq turgan paytda kelgan xabarlar ushlanadi. Toza yopiq paytdagi o\'chirilgan xabarlar matni ko\'rinmaydi.');
       if(!st.linked) {
-        box.replaceChildren(head,
-          h('div', {style: 'font-size:12px;opacity:.75;margin:4px 0 8px'} as any, 'Sharpa boti xabarlarni doim ushlab turadi: telefon yoki Toza yopiq bo\'lsa ham. Toza ochilganda ular chatda ko\'rinadi. Telegram Premium kerak.'),
-          row(btn('Sharpa\'ga ulash', async(b) => { b.textContent = 'Ulanmoqda…'; msg.replaceChildren(); try { await m.connectSharpa(); await paint(); } catch(e) { b.textContent = 'Sharpa\'ga ulash'; msg.append(note(errMsg(e), '#d33')); } })),
+        box.replaceChildren(head, what, free,
+          row(buy('Premium yoqish'), btn('Faqat ulash', async(b) => { b.textContent = 'Ulanmoqda…'; msg.replaceChildren(); try { await m.connectSharpa(); await paint(); } catch(e) { b.textContent = 'Faqat ulash'; msg.append(note(errMsg(e), '#d33')); } }, true)),
           msg);
         return;
       }
-      if(st.connected === undefined) await m.pullBiz();
       const bot = '@' + String(st.bot || 'sharpa').replace(/^@/, '');
-      const status = st.connected ?
-        note(`Ishlayapti. ${st.lastPull ? 'Oxirgi tekshiruv: hozirgina' + (st.added ? `, ${st.added} ta yangi yozuv.` : '.') : ''}`, '#2a9d4b') :
-        note(`Yana bir qadam: Telegram → Sozlamalar → Telegram Business → Chat-botlar → ${bot} ni qo'shing. Shundan keyin ${bot} xabarlarni ushlay boshlaydi.`, '#e8860c');
-      box.replaceChildren(head, status, ...(st.error ? [note('Xato: ' + st.error, '#d33')] : []),
-        row(btn('Tekshirish', async() => { await m.pullBiz(); await paint(); }, true),
-          btn('Uzish', async() => { m.disconnectSharpa(); await paint(); }, true)), msg);
+      const parts: Node[] = [head];
+      if(st.paid) {
+        const till = Math.max(0, ...Object.values(st.plans || {}));
+        parts.push(small((st.full ? 'To\'liq tarif: matn, ovoz, rasm va dumaloq video.' : 'Oddiy tarif: matn va ovoz. Rasm va dumaloq video uchun «To\'liq» tarif kerak.') + (till ? ` ${date(till)} gacha.` : '')));
+      } else {
+        parts.push(note(st.locked ? `Obuna yo'q: Toza yopiq paytda ushlangan ${st.locked} ta xabar yopiq turibdi. Obuna olsangiz, ular ham chatda ochiladi.` : 'Obuna yo\'q: Toza yopiq paytda ushlangan xabarlar matni ko\'rinmaydi. Toza ochiq paytdagilar bepul ishlayveradi.', '#e8860c'));
+      }
+      if(!st.connected) parts.push(note(`Yana bir qadam: Telegram → Sozlamalar → Telegram Business → Chat-botlar → ${bot} ni qo'shing (Telegram Premium kerak). Shundan keyin bot xabarlarni ushlay boshlaydi.`, '#e8860c'));
+      else parts.push(small('✅ Bot ulangan va xabarlarni ushlab turibdi.' + (st.added ? ` Oxirgi tekshiruvda ${st.added} ta yangi yozuv.` : '')));
+      if(st.error) parts.push(note('Xato: ' + st.error, '#d33'));
+      parts.push(row(...(st.paid ? [] : [buy('Obuna olish')]), btn('Tekshirish', async() => { await m.pullBiz(); await paint(); }, true),
+        btn('Uzish', async() => { m.disconnectSharpa(); await paint(); }, true)), msg);
+      box.replaceChildren(...parts);
     };
     paint();
     return box;

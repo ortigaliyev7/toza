@@ -4,19 +4,22 @@
 //    va qurilma tokenini beradi (Sharpa: tlogin.py, /tb/nonce, /tb/login). Token faqat shu brauzerda saqlanadi.
 //  - Ma'lumot: GET /tb/biz?since=… (X-TB-Dev: token). Telegram Business uchun foydalanuvchida Telegram Premium bo'lishi kerak.
 import rootScope from '@lib/rootScope';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {keyOf, mergeBiz} from './core';
 import type {BizItem} from './core';
 import {refreshGhosts, serverUrl, store, watching} from './hooks';
 
-const LS_K = 'toza_sharpa_k', LS_SINCE = 'toza_biz_since', LS_BOT = 'toza_sharpa_bot';
+const LS_K = 'toza_sharpa_k', LS_SINCE = 'toza_biz_since', LS_BOT = 'toza_sharpa_bot', LS_PAID = 'toza_biz_paid', LS_LOCKED = 'toza_biz_locked';
 const PULL_MS = 60_000;
 const ls = {
   get: (k: string) => { try { return localStorage.getItem(k) || ''; } catch{ return ''; } },
   set: (k: string, v: string) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch{ /* xotira yopiq */ } }
 };
 
-export type BizState = {linked: boolean; connected?: boolean; bot?: string; lastPull?: number; added?: number; error?: string};
-export const bizState: BizState = {linked: !!ls.get(LS_K), bot: ls.get(LS_BOT) || undefined};
+/** Toza Premium = Sharpa obunasi (Oddiy: matn va ovoz; To'liq: + rasm va dumaloq video). Sotib olish Sharpa botida. */
+export type BizState = {linked: boolean; connected?: boolean; bot?: string; lastPull?: number; added?: number; error?: string;
+  paid?: boolean; full?: boolean; plans?: Record<string, number>; locked: number; trialDays?: number};
+export const bizState: BizState = {linked: !!ls.get(LS_K), bot: ls.get(LS_BOT) || undefined, paid: ls.get(LS_PAID) === '1' || undefined, locked: Number(ls.get(LS_LOCKED)) || 0};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -54,8 +57,20 @@ export async function connectSharpa(): Promise<void> {
 }
 
 export function disconnectSharpa() {
-  ls.set(LS_K, ''); ls.set(LS_SINCE, '');
-  Object.assign(bizState, {linked: false, connected: undefined, error: ''});
+  ls.set(LS_K, ''); ls.set(LS_SINCE, ''); ls.set(LS_PAID, ''); ls.set(LS_LOCKED, '');
+  Object.assign(bizState, {linked: false, connected: undefined, error: '', paid: undefined, full: undefined, plans: undefined, locked: 0});
+}
+
+/** Sharpa botida tarif tanlash oynasini ochadi (Toza ichida, bot chatida). Ulanmagan bo'lsa avval ulaydi. */
+export async function openPremium(): Promise<void> {
+  if(!ls.get(LS_K)) await connectSharpa();
+  const bot = String(bizState.bot || ls.get(LS_BOT) || '').replace(/^@/, '');
+  if(!bot) throw new Error('no_bot');
+  const mgr = (rootScope as any).managers;
+  const peer: any = await mgr.appUsersManager.resolveUsername(bot);
+  if(!peer?.id) throw new Error('no_bot');
+  await mgr.appMessagesManager.startBot(peer.id, undefined, 'x_buy');
+  (hotReloadGuard as any).appImManager?.setInnerPeer?.({peerId: peer.id});
 }
 
 let pulling: Promise<number> | null = null;
@@ -71,8 +86,12 @@ export function pullBiz(): Promise<number> {
         const r = await api('/tb/biz?since=' + since, {headers: {'X-TB-Dev': k}});
         if(r.status === 403) { disconnectSharpa(); bizState.error = 'denied'; return added; }
         if(!r.ok) throw new Error('biz_' + r.status);
-        const d: {connected: boolean; bot: string; items: BizItem[]; more: boolean} = await r.json();
-        Object.assign(bizState, {connected: d.connected, bot: d.bot || bizState.bot, error: ''});
+        const d: {connected: boolean; bot: string; items: BizItem[]; more: boolean; paid?: boolean; full?: boolean; plans?: Record<string, number>; locked?: number; trial_days?: number} = await r.json();
+        Object.assign(bizState, {connected: d.connected, bot: d.bot || bizState.bot, error: '', paid: !!d.paid, full: !!d.full, plans: d.plans || {}, trialDays: d.trial_days});
+        // obuna endi yoqildi: avval yopiq bo'lgan xabarlarni boshidan qayta olamiz
+        if(d.paid && ls.get(LS_PAID) !== '1' && since) { ls.set(LS_PAID, '1'); ls.set(LS_SINCE, ''); ls.set(LS_LOCKED, ''); bizState.locked = 0; continue; }
+        ls.set(LS_PAID, d.paid ? '1' : '');
+        if(d.paid) { bizState.locked = 0; ls.set(LS_LOCKED, ''); } else if(d.locked) { bizState.locked += d.locked; ls.set(LS_LOCKED, String(bizState.locked)); }
         let top = since;
         const now = Date.now();
         for(const it of d.items || []) {
