@@ -27,6 +27,7 @@ const P: Record<string, string> = {
   rewind: '<path d="M11 7L6 12l5 5"/><path d="M18 7l-5 5 5 5"/>',
   forward: '<path d="M13 7l5 5-5 5"/><path d="M6 7l5 5-5 5"/>',
   trash: '<path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 13h9l1-13"/><path d="M10 11v5.5M14 11v5.5"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
   flip: '<path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4z"/><path d="M9 12.5a3 3 0 0 1 5.2-1.6l.8.9"/><path d="M15 10v1.8h-1.8"/><path d="M15 14.5a3 3 0 0 1-5.2 1.6l-.8-.9"/><path d="M9 17v-1.8h1.8"/>',
   chevron: '<path d="M9.5 6l6 6-6 6"/>'
 };
