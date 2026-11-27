@@ -1,0 +1,48 @@
+diff --git a/src/components/dialogsSelectionBase.ts b/src/components/dialogsSelectionBase.ts
+index 6b40f4b..aab4008 100644
+--- a/src/components/dialogsSelectionBase.ts
++++ b/src/components/dialogsSelectionBase.ts
+@@ -487,6 +487,9 @@ export abstract class DialogsSelectionBase<Action extends string = string> exten
+     this.disposePlate = mounted.dispose;
+     this.header.after(this.plate);
+ 
++    // * Toza: the bar's own quick-select strip (by category) is laid under it from outside
++    document.dispatchEvent(new CustomEvent('toza-selection', {detail: {selection: this, plate: this.plate, header: this.header, kind: this.countLangKey}}));
++
+     // the bar is built and shown in one go, so the browser is made to look at it transparent first -
+     // without that it is born with the class already on and the fade has nothing to start from
+     void this.plate.offsetWidth; // reflow
+@@ -506,6 +509,33 @@ export abstract class DialogsSelectionBase<Action extends string = string> exten
+     });
+   }
+ 
++  /** Toza: the bar's own delete (a chat's leave), asked the way the menu asks */
++  public async tozaDelete() {
++    await this.updateActions();
++    return this.performFromMenu('delete' as Action);
++  }
++
++  /** Toza: every key of the list (loaded rows included, mounted or not) */
++  public tozaListKeys(): number[] {
++    return (this.getSortedList()?.getSortedItems() || []).map((item) => item.id as number);
++  }
++
++  /** Toza: makes exactly these keys the selection, rows on screen and off it */
++  public tozaSelectOnly(keys: number[]) {
++    const want = new Set(keys);
++    const rows = Array.from(this.getSortedList()?.list?.querySelectorAll<HTMLElement>('.' + DIALOG_ROW_CLASS_NAME) || [])
++    .filter((row) => this.canSelect(row));
++    const mounted = new Set(rows.map((row) => this.getDialogKey(row)));
++    for(const key of Array.from(this.selectedKeys)) if(!want.has(key) && !mounted.has(key)) this.selectedKeys.delete(key);
++    for(const key of want) if(!mounted.has(key)) this.selectedKeys.add(key);
++    // * the wanted rows first: taking the last one off before would end the mode
++    rows.filter((row) => want.has(this.getDialogKey(row))).forEach((row) => this.toggleByElement(row, true));
++    rows.filter((row) => !want.has(this.getDialogKey(row))).forEach((row) => this.toggleByElement(row, false));
++    this.toggleSelection(true, true);
++    this.updateContainer(true);
++    this.setCount?.(this.length());
++  }
++
+   /** The bar follows the selection: the count is all it shows until the menu is opened */
+   protected async updateContainer(forceSelection = false) {
+     const count = this.length();

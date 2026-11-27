@@ -2,6 +2,13 @@
   {
     "date": "2026-11-27",
     "items": [
+      "Chatlar ro'yxatida yoki kontaktlarda bosib turib belgilashni boshlasangiz, tepada toifa tugmalari chiqadi: O'qilmagan, Uzoq ochilmagan, 1 oy jim, Kanallar, Guruhlar, Botlar, O'chirilgan akkaunt va boshqalar.",
+      "Tugmani bossangiz, o'sha toifadagilar birdaniga belgilanadi. «O'chirish» tasdiqdan keyin o'chiradi yoki kanal/guruhdan chiqadi."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "Kanal va guruhlarni tozalash: uzoq ochilmagan, ko'p o'qilmagan, 1 oydan beri jim qolgan, ovozsiz yoki arxivdagilarni saralab, birdaniga chiqib ketish.",
       "Kontaktlardagi kabi tez belgilash va chiqishdan oldin tasdiq. Toza sozlamalari → Vositalar."
     ]

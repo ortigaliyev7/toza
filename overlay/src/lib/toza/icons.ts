@@ -26,6 +26,7 @@ const P: Record<string, string> = {
   mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5m0-5l-5 5"/>',
   rewind: '<path d="M11 7L6 12l5 5"/><path d="M18 7l-5 5 5 5"/>',
   forward: '<path d="M13 7l5 5-5 5"/><path d="M6 7l5 5-5 5"/>',
+  trash: '<path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l1 13h9l1-13"/><path d="M10 11v5.5M14 11v5.5"/>',
   chevron: '<path d="M9.5 6l6 6-6 6"/>'
 };
 export function icon(name: string, size = 20): SVGSVGElement {
