@@ -1,3 +1,4 @@
+import {ensureStyle} from './style';
 import {alertsOn, setAlertsOn} from './alerts';
 import {viewExport, viewLock, viewSearch, viewStats, viewTemplates} from './tools';
 import type {Ctx} from './tools';
@@ -31,18 +32,19 @@ const BTN2 = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-we
 
 export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'history') {
   startTozaBackup();
-  const back = h('div', {style: 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px;'});
-  const panel = h('div', {style: 'background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border-radius:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px;line-height:1.4;'});
+  ensureStyle();
+  const back = h('div', {className: 'tz-back'});
+  const panel = h('div', {className: 'tz-pop'});
   back.append(panel);
   const close = () => back.remove();
   back.addEventListener('mousedown', (e) => { if(e.target === back) close(); });
   document.body.append(back);
 
-  const title = (t: string) => h('div', {style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;'}, h('b', {style: 'font-size:18px'}, t), Object.assign(h('button', {style: BTN2 + 'padding:4px 10px'}, 'Yopish'), {onclick: close}));
+  const title = (t: string) => h('div', {className: 'tz-head', style: 'display:flex;align-items:center;justify-content:space-between;'}, h('b', {}, t), Object.assign(h('button', {className: 'tz-x'}, '✕'), {onclick: close}));
   const note = (t: string, color = '') => h('div', {style: 'margin:8px 0;opacity:.85;' + (color ? `color:${color};opacity:1;` : '')}, t);
   const row = (...k: (Node | string)[]) => h('div', {style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;'}, ...k);
   const btn = (t: string, fn: (b: HTMLButtonElement) => any, secondary = false) => {
-    const b = h('button', {style: secondary ? BTN2 : BTN}, t);
+    const b = h('button', {style: secondary ? BTN2 : BTN, className: secondary ? '' : 'tz-main'}, t);
     b.onclick = async() => { b.disabled = true; try { await fn(b); } finally { b.disabled = false; } };
     return b;
   };
