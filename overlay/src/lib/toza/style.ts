@@ -1,27 +1,31 @@
 // Toza oynalarining Telegram (tweb) uslubidagi umumiy ko'rinishi: tweb'ning o'z rang o'zgaruvchilari va shrifti ishlatiladi,
 // shuning uchun yorug'/qorong'i rejim va tanlangan rang mavzusiga o'zi moslashadi.
 const CSS = `
-.tz-back{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:12px;animation:tzf .15s ease-out}
+.tz-back{--tx:#1B1A3D;--tx2:#565B82;--ac:var(--tz-a,#4A5AE8);--btn:linear-gradient(135deg,var(--tz-a,#5866F0),var(--tz-b,#3F4EDB));--card:rgba(255,255,255,.66);--cb:rgba(255,255,255,.92);--in:rgba(255,255,255,.55);--line:rgba(80,90,170,.14);--shd:0 12px 34px rgba(60,70,170,.18),inset 0 1px 0 rgba(255,255,255,.9);--sheet:rgba(244,242,255,.9);--acbg:rgba(74,90,232,.12);--bd:#C0314B;--bdbg:rgba(192,49,75,.12);--ok:#0E7A52;
+position:fixed;inset:0;z-index:9999;background:rgba(10,10,40,.45);display:flex;align-items:center;justify-content:center;padding:12px;animation:tzf .15s ease-out;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+:is(html,body).night .tz-back{--tx:#F3F4FF;--tx2:#AEB3DD;--ac:#9DA9FF;--card:rgba(52,58,128,.44);--cb:rgba(255,255,255,.14);--in:rgba(255,255,255,.09);--line:rgba(255,255,255,.12);--shd:0 12px 34px rgba(0,0,20,.38),inset 0 1px 0 rgba(255,255,255,.07);--sheet:rgba(30,34,86,.92);--acbg:rgba(157,169,255,.18);--bd:#FF8FA3;--bdbg:rgba(255,110,140,.18);--ok:#62E6AB;background:rgba(0,0,16,.55)}
 @keyframes tzf{from{opacity:0}to{opacity:1}}
-.tz-pop{background:var(--surface-color,#fff);color:var(--primary-text-color,#000);border-radius:18px;max-width:440px;width:100%;max-height:92vh;overflow:auto;padding:0 0 12px;box-shadow:0 8px 32px rgba(0,0,0,.3);font-size:15px;line-height:1.35;font-family:inherit;animation:tzp .18s ease-out}
-@keyframes tzp{from{transform:translateY(14px);opacity:.6}to{transform:none;opacity:1}}
-.tz-pop>*{margin-left:16px!important;margin-right:16px!important}
-.tz-pop>.tz-head{margin:0!important;padding:14px 16px 8px;position:sticky;top:0;background:var(--surface-color,#fff);z-index:1}
-.tz-pop b{display:block;color:var(--primary-color,#3390ec);font-weight:500;font-size:14px;margin:14px 0 6px}
-.tz-pop .tz-head b{color:inherit;font-size:19px;font-weight:500;margin:0;display:inline}
-.tz-pop button{border:0!important;cursor:pointer;font-family:inherit!important;font-weight:500!important;border-radius:10px!important;background:rgba(127,127,127,.14)!important;color:var(--primary-color,#3390ec)!important;padding:9px 14px!important;transition:background .12s}
-.tz-pop button:hover{background:rgba(127,127,127,.24)!important}
-.tz-pop button.tz-main{background:var(--primary-color,#3390ec)!important;color:#fff!important}
-.tz-pop button.tz-x{background:transparent!important;padding:4px 10px!important;font-size:22px;line-height:1;color:var(--secondary-text-color,#707579)!important}
+.tz-pop{background:var(--sheet);color:var(--tx);border:1px solid var(--cb);-webkit-backdrop-filter:blur(28px) saturate(1.5);backdrop-filter:blur(28px) saturate(1.5);border-radius:28px;max-width:440px;width:100%;max-height:92vh;overflow:auto;padding:0 0 14px;box-shadow:0 20px 50px rgba(20,20,80,.35);font:500 15px/1.35 'Inter',system-ui,sans-serif;animation:tzp .2s ease-out}
+@keyframes tzp{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}
+.tz-pop>*{margin-left:18px!important;margin-right:18px!important}
+.tz-pop>.tz-head{margin:0!important;padding:16px 18px 10px;position:sticky;top:0;background:var(--sheet);z-index:1}
+.tz-pop b{display:block;color:var(--tx2);font:700 13px/1 'Inter',sans-serif;margin:14px 0 8px;letter-spacing:.2px}
+.tz-pop .tz-head b{color:var(--tx);font:800 22px/1.15 'Nunito','Inter',system-ui,sans-serif;margin:0;display:block;letter-spacing:-.2px}
+.tz-pop button{border:0!important;cursor:pointer;font:700 14px/1 'Inter',system-ui,sans-serif!important;height:44px;border-radius:16px!important;background:var(--in)!important;color:var(--tx)!important;padding:0 16px!important;box-shadow:inset 0 0 0 1px var(--cb)!important;transition:transform .1s}
+.tz-pop button:active{transform:scale(.97)}
+.tz-pop button.tz-main{background:var(--btn)!important;color:#fff!important;box-shadow:0 10px 22px rgba(70,84,225,.34),inset 0 1px 0 rgba(255,255,255,.35)!important}
+.tz-pop button.tz-x{width:40px;height:40px;padding:0!important;border-radius:50%!important;font-size:18px!important;color:var(--tx2)!important;background:var(--card)!important}
 .tz-pop button:disabled{opacity:.6}
-.tz-pop hr{border:0!important;border-top:1px solid var(--border-color,rgba(127,127,127,.25))!important;margin:12px 0!important}
-.tz-pop input{font-family:inherit!important;border-radius:10px!important;border:1.5px solid var(--border-color,rgba(127,127,127,.35))!important;padding:10px 12px!important;outline:none}
-.tz-pop input:focus{border-color:var(--primary-color,#3390ec)!important}
-.tz-pop [role=checkbox]{border-radius:10px!important}
-.tz-sec{background:rgba(127,127,127,.09);border-radius:14px;padding:4px 14px 12px;margin-top:10px!important}
-.tz-row{display:flex;align-items:center;gap:12px;padding:8px 0}
-.tz-ic{font-size:20px;width:26px;text-align:center;flex:none}
-.tz-sub{color:var(--secondary-text-color,#707579);font-size:13px}
+.tz-pop hr{border:0!important;border-top:1px solid var(--line)!important;margin:12px 0!important}
+.tz-pop input{font:500 15px/1.3 'Inter',system-ui,sans-serif!important;border-radius:16px!important;background:var(--in)!important;border:1px solid var(--cb)!important;min-height:48px;padding:0 14px!important;outline:none;color:var(--tx)!important}
+.tz-pop input:focus{border-color:var(--ac)!important;box-shadow:0 0 0 3px var(--acbg)}
+.tz-pop [role=checkbox]{border-radius:18px!important;background:var(--card)!important;border:1px solid var(--cb)}
+.tz-sec{background:var(--card);border:1px solid var(--cb);border-radius:24px;box-shadow:var(--shd);padding:2px 16px 14px;margin-top:12px!important}
+.tz-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 0}
+.tz-row+.tz-row{border-top:1px solid var(--line)}
+.tz-ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;font-size:18px;background:var(--btn);box-shadow:0 6px 14px rgba(70,80,200,.22),inset 0 1px 0 rgba(255,255,255,.4)}
+.tz-sub{color:var(--tx2);font:500 13px/1.35 'Inter',sans-serif}
+.tz-pop .tz-sub{margin:2px 0}
 `;
 export function ensureStyle() {
   if(document.getElementById('tz-style')) return;

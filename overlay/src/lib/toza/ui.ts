@@ -27,7 +27,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
   kids.forEach((k) => el.append(k));
   return el;
 };
-const BTN = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--primary-color,#3390ec);color:#fff;';
+const BTN = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--ac,#4A5AE8);color:#fff;';
 const BTN2 = 'border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:rgba(127,127,127,.18);color:inherit;';
 
 export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'history') {
@@ -86,8 +86,8 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
     const msg = h('div');
     // tweb'ning umumiy uslubi oddiy checkbox'ni ko'rinmas qiladi: o'z belgi katakchamizni chizamiz
     let acked = false;
-    const boxEl = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
-    const setAck = (v: boolean) => { acked = v; msg.replaceChildren(); boxEl.textContent = v ? '✓' : ''; boxEl.style.background = v ? 'var(--primary-color,#3390ec)' : 'transparent'; };
+    const boxEl = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+    const setAck = (v: boolean) => { acked = v; msg.replaceChildren(); boxEl.textContent = v ? '✓' : ''; boxEl.style.background = v ? 'var(--ac,#4A5AE8)' : 'transparent'; };
     const go = btn('Davom etish', async() => {
       msg.replaceChildren();
       if(!acked) { msg.append(note('Avval kodni yozib olganingizni tasdiqlang.', '#d33')); return; }
@@ -118,8 +118,8 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
 
   function alertRow() {
     let on = alertsOn();
-    const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
-    const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--primary-color,#3390ec)' : 'transparent'; };
+    const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+    const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--ac,#4A5AE8)' : 'transparent'; };
     paint();
     const label = h('div', {}, h('div', {style: 'font-weight:600'}, 'Tahrirlangan va o\'chirilgan xabarlar haqida xabar berish'),
       h('div', {style: 'font-size:12px;opacity:.7'}, isPaid() ? 'Toza ochiq turganda ekranda (va ruxsat bersangiz tizim bildirishnomasi bilan) darrov ko\'rsatiladi. Toza yopiq bo\'lsa ishlamaydi.' : 'Sharpa obunasi bilan ishlaydi. Obuna ulangach o\'zi yoqiladi.'));
@@ -173,8 +173,8 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
     for(const e of rows.filter((x) => Number(x.peerId) > 0).slice(0, 300)) {
       titles.set(e.peerId, await peerTitle(e.peerId));
       let on = chatEnabled(e.peerId);
-      const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--primary-color,#3390ec);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
-      const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--primary-color,#3390ec)' : 'transparent'; };
+      const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
+      const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--ac,#4A5AE8)' : 'transparent'; };
       paint();
       const item = Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2);cursor:pointer;user-select:none;'}, box,
         h('div', {style: 'flex:1;min-width:0'}, h('div', {style: 'font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, titles.get(e.peerId) || e.peerId),

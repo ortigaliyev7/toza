@@ -365,7 +365,7 @@ export function setProfile(p: TozaProfile) {
 }
 export function applyProfileTheme() {
   const a = getProfile().accent, st = document.documentElement.style;
-  if(a) { st.setProperty('--primary-color', a); st.setProperty('--link-color', a); } else { st.removeProperty('--primary-color'); st.removeProperty('--link-color'); }
+  if(a) { st.setProperty('--primary-color', a); st.setProperty('--link-color', a); st.setProperty('--tz-a', a); st.setProperty('--tz-b', a); } else { ['--primary-color', '--link-color', '--tz-a', '--tz-b'].forEach((k) => st.removeProperty(k)); }
 }
 
 export async function counts() {
