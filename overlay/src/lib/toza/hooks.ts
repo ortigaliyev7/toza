@@ -8,6 +8,7 @@ import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts
 import {clearGhosts, injectEdits, injectGhosts} from './ghost';
 import {applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
 import {matchKeyword} from './tools-core';
+import {isStrict} from './play';
 import {bindTranslitKeys, startScriptModes} from './translit';
 import {mountQuickBar} from './quickbar';
 import {startAutoUpdate} from './update';
@@ -81,6 +82,8 @@ export {generateRecoveryCode, normalizeCode, TozaApiError};
 
 function toIncoming(m: any): Incoming | null {
   if(!m || m._ !== 'message' || typeof m.mid !== 'number' || m.peerId === undefined) return null;
+  // Qoidalar rejimi (Telegram API shartlari 1.4): o'zi yo'qoladigan xabarlar (avto-o'chirish taymeri, bir martalik media) ushlanmaydi.
+  if(isStrict() && (m.ttl_period || m.media?.ttl_seconds)) return null;
   return {peerId: String(m.peerId), mid: m.mid, date: m.date, from: m.fromId !== undefined ? String(m.fromId) : undefined, out: !!m.pFlags?.out, text: m.message || '', kind: m.media?._, ...(m.media?.ttl_seconds ? {once: true} : {})};
 }
 

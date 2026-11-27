@@ -6,6 +6,7 @@ import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
 import getPeerId from '@lib/appManagers/utils/peers/getPeerId';
 import {ensureStyle} from './style';
 import {bizState} from './biz';
+import {isPlayApp, isStrict} from './play';
 import {archive, watching, setWatching, peerTitle, updateReadButton} from './hooks';
 import {getFlags, keywordsOn, keywordsRaw, saveOnceOn, setFlags, setKeywords, setKeywordsOn, setSaveOnce} from './prefs';
 import type {TozaFlags} from './flags';
@@ -133,13 +134,13 @@ export function openTozaSettings() {
     const kwOn = keywordsOn(), kwN = parseKeywords(keywordsRaw()).length;
     show(
       title('Toza sozlamalari'),
-      sec('Toza Premium', nav('spark', 'Toza Premium', bizState.paid ? 'Yoqilgan · Toza yopiq bo\'lsa ham ishlaydi' : 'Toza yopiq bo\'lsa ham ishlashi uchun · Sharpa botida', () => { close(); import('./ui').then((m) => m.openTozaBackup()); })),
-      sec('Ko\'rinmas rejim', ...ghostRows, h('div', {className: 'tz-hint'}, 'Dastlabki uchtasi bosh ekranda ham bor. Telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.')),
+      sec('Toza Premium', nav('spark', 'Toza Premium', bizState.paid ? 'Yoqilgan · Toza yopiq bo\'lsa ham ishlaydi' : 'Toza yopiq bo\'lsa ham ishlashi uchun · ' + (isPlayApp() ? 'Google Play obunasi' : 'Sharpa botida'), () => { close(); import('./ui').then((m) => m.openTozaBackup()); })),
+      ...(isStrict() ? [] : [sec('Ko\'rinmas rejim', ...ghostRows, h('div', {className: 'tz-hint'}, 'Dastlabki uchtasi bosh ekranda ham bor. Telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.'))]),
       sec('Saqlash',
         check('O\'chirilgan va tahrirlangan xabarlar', 'Bepul. Shaxsiy chatlarda boshqalar o\'chirgan xabar o\'z joyida qoladi, tahrirlanganining eski matni ostida ko\'rinadi.', watching, setWatching, 'trash'),
         nav('chat', 'O\'chirilgan xabarlar ro\'yxati', '', () => { close(); import('./ui').then((m) => m.openTozaBackup()); }),
-        check('Bir martalik media', 'Ko\'rilgach yo\'qoladigan rasm/video shu qurilmada saqlanadi.', saveOnceOn, setSaveOnce, 'timer'),
-        nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce()),
+        ...(isStrict() ? [] : [check('Bir martalik media', 'Ko\'rilgach yo\'qoladigan rasm/video shu qurilmada saqlanadi.', saveOnceOn, setSaveOnce, 'timer'),
+          nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce())]),
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
       sec('Vositalar',
         nav('contacts', 'Kontaktlarni tozalash', 'Uzoq kirmagan, o\'chirilgan akkaunt, chat yo\'q…', () => { close(); import('./contacts').then((m) => m.openContactsCleaner(() => openTozaSettings())); }),
@@ -155,7 +156,7 @@ export function openTozaSettings() {
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
         check('Bosib turib yozish', 'Telefonda: mikrofonni bosib turing — yoziladi, qo\'yib yuboring — yuboriladi, chapga suring — bekor, tepaga — qulflash. Qisqa bosish: ovoz ↔ dumaloq video.', () => featureOn('holdrec'), (v) => setFeature('holdrec', v), 'mic'),
         check('Dumaloq videoda kamera almashtirish', 'Yozayotganda old/orqa kamera tugmasi.', () => featureOn('roundcam'), (v) => setFeature('roundcam', v), 'flip'),
-        h('div', {className: 'tz-hint'}, 'Ko\'rinmas rejim, ko\'z asrash va lotin/kirill yuqoridagi o\'z bo\'limlarida o\'chiriladi.')),
+        h('div', {className: 'tz-hint'}, (isStrict() ? '' : 'Ko\'rinmas rejim, ') + 'Ko\'z asrash va lotin/kirill yuqoridagi o\'z bo\'limlarida o\'chiriladi.')),
       sec('Qulayliklar',
         nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
         nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),

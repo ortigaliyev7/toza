@@ -147,14 +147,28 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       const m = await import('./biz');
       const st = m.bizState;
       const msg = h('div');
-      const buy = (label: string) => btn(label, async(b) => { msg.replaceChildren(); try { close(); await m.openPremium(); } catch(e) { b.textContent = label; msg.append(note(errMsg(e), '#d33')); } });
+      const play = await import('./play');
+      const inPlay = play.isPlayApp();
+      // Google Play ilovasida: faqat Play Billing (tashqi to'lovga yo'naltirish yo'q). Tariflar narxi Play'dan, foydalanuvchi valyutasida.
+      const playPlans = async() => {
+        msg.replaceChildren(small('Narxlar yuklanmoqda…'));
+        let items: Awaited<ReturnType<typeof play.playItems>> = [];
+        try { items = await play.playItems(); } catch(e) { msg.replaceChildren(note(String((e as any)?.message) === 'no_billing' ? 'Google Play to\'lovi bu qurilmada ishlamadi. Ilovani Google Play\'dan o\'rnating va Chrome yangilangan bo\'lsin.' : errMsg(e), '#d33')); return; }
+        msg.replaceChildren(...items.map((it) => h('div', {style: 'margin:8px 0;padding:10px;border-radius:10px;background:rgba(127,127,127,.12);'} as any,
+          h('div', {style: 'font-weight:700'} as any, `${it.name} — ${it.price}${it.period ? ' ' + it.period : ''}`), small(it.what),
+          row(btn('Obuna bo\'lish', async(b) => { const t = b.textContent; try { await m.buyInPlay(it.id as any); await paint(); } catch(e) { b.textContent = t; msg.append(note(String((e as any)?.name) === 'AbortError' ? 'Bekor qilindi.' : errMsg(e), '#d33')); } }, true)))),
+          small('Obuna avtomatik yangilanadi. Istalgan vaqtda Google Play → Obunalar bo\'limida bekor qilasiz, to\'langan muddat oxirigacha ishlayveradi.'));
+      };
+      const buy = (label: string) => inPlay ? btn(label, () => playPlans(), true) : btn(label, async(b) => { msg.replaceChildren(); try { close(); await m.openPremium(); } catch(e) { b.textContent = label; msg.append(note(errMsg(e), '#d33')); } });
+      const playExtra = () => inPlay ? [btn('Xaridni tiklash', async() => { msg.replaceChildren(); try { const n = await m.restoreInPlay(); if(n) await paint(); else msg.append(note('Bu Google akkauntida Toza obunasi topilmadi.', '#e8860c')); } catch(e) { msg.append(note(errMsg(e), '#d33')); } }, true),
+        btn('Obunani boshqarish', () => { window.open(play.PLAY_MANAGE_URL, '_blank'); }, true)] : [];
       if(st.linked && st.connected === undefined) await m.pullBiz();
       const head = h('div', {style: 'font-weight:700;font-size:15px'} as any, st.paid ? '⭐ Toza Premium yoqilgan' : '⭐ Toza Premium');
-      const what = small('Premium bilan Toza yopiq bo\'lsa ham (telefon o\'chiq bo\'lsa ham) o\'chirilgan va tahrirlangan xabarlar ushlanadi: Sharpa boti ularni doim saqlab turadi, Toza ochilganda chatda ko\'rinadi. Obuna Sharpa botida olinadi.');
+      const what = small('Premium bilan Toza yopiq bo\'lsa ham (telefon o\'chiq bo\'lsa ham) o\'chirilgan va tahrirlangan xabarlar ushlanadi: Sharpa boti ularni doim saqlab turadi, Toza ochilganda chatda ko\'rinadi.' + (inPlay ? ' Obuna Google Play orqali olinadi.' : ' Obuna Sharpa botida olinadi.'));
       const free = small('Obunasiz: faqat Toza ochiq turgan paytda kelgan xabarlar ushlanadi. Toza yopiq paytdagi o\'chirilgan xabarlar matni ko\'rinmaydi.');
       if(!st.linked) {
         box.replaceChildren(head, what, free,
-          row(buy('Premium yoqish'), btn('Faqat ulash', async(b) => { b.textContent = 'Ulanmoqda…'; msg.replaceChildren(); try { await m.connectSharpa(); await paint(); } catch(e) { b.textContent = 'Faqat ulash'; msg.append(note(errMsg(e), '#d33')); } }, true)),
+          row(buy('Premium yoqish'), ...playExtra(), btn('Faqat ulash', async(b) => { b.textContent = 'Ulanmoqda…'; msg.replaceChildren(); try { await m.connectSharpa(); await paint(); } catch(e) { b.textContent = 'Faqat ulash'; msg.append(note(errMsg(e), '#d33')); } }, true)),
           msg);
         return;
       }
@@ -169,7 +183,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       if(!st.connected) parts.push(note(`Yana bir qadam: Telegram → Sozlamalar → Telegram Business → Chat-botlar → ${bot} ni qo'shing (Telegram Premium kerak). Shundan keyin bot xabarlarni ushlay boshlaydi.`, '#e8860c'));
       else parts.push(small('✅ Bot ulangan va xabarlarni ushlab turibdi.' + (st.added ? ` Oxirgi tekshiruvda ${st.added} ta yangi yozuv.` : '')));
       if(st.error) parts.push(note('Xato: ' + st.error, '#d33'));
-      parts.push(row(...(st.paid ? [] : [buy('Obuna olish')]), btn('Tekshirish', async() => { await m.pullBiz(); await paint(); }, true),
+      parts.push(row(...(st.paid ? [] : [buy('Obuna olish')]), ...playExtra(), btn('Tekshirish', async() => { await m.pullBiz(); await paint(); }, true),
         btn('Uzish', async() => { m.disconnectSharpa(); await paint(); }, true)), msg);
       box.replaceChildren(...parts);
     };

@@ -11,6 +11,9 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy no-referrer always;
 
+    # Android ilova (TWA) sayt bilan bog'lanishi: Google tekshiradi, JSON bo'lishi shart
+    location = /.well-known/assetlinks.json { default_type application/json; add_header Cache-Control "no-cache"; add_header Access-Control-Allow-Origin "*"; try_files $uri =404; }
+    location ~ ^/(privacy|terms|delete)\.html$ { add_header Cache-Control "no-cache"; try_files $uri =404; }
     location = /toza-version.txt { add_header Cache-Control "no-store"; try_files $uri =404; }
     location = /sw.js { add_header Cache-Control "no-cache"; try_files $uri =404; }
     # Faqat Sharpa Mini App ichida (va Telegram'ning o'zida) ochilishi mumkin: boshqa saytlar kirish oynasini yashirincha joylashtira olmaydi (clickjacking).

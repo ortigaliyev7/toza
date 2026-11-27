@@ -1,0 +1,10 @@
+// Toza Android ilovasi (Google Play): Trusted Web Activity — Toza veb-ilovasini Chrome orqali to'liq ekranda ochadi.
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = 'toza-android'
+include ':app'

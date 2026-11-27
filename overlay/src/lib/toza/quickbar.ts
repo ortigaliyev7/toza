@@ -5,6 +5,7 @@ import {ensureStyle} from './style';
 import {getFlags, setFlags} from './prefs';
 import type {TozaFlags} from './flags';
 import {notice} from './alerts';
+import {isStrict} from './play';
 
 export const FLAGS_EVENT = 'toza-flags';
 const CHIPS: {k: keyof TozaFlags; ic: string; label: string; title: string; on: string; off: string}[] = [
@@ -51,6 +52,7 @@ function build(): HTMLElement {
 
 /** Tugmalar qatorini joyiga qo'yadi va tweb sarlavhani qayta chizsa ham qaytaradi. */
 export function mountQuickBar() {
+  if(isStrict()) return;                                                 // qoidalar rejimida ko'rinmas rejim yo'q
   ensureStyle();
   window.addEventListener(FLAGS_EVENT, paint);
   const place = () => {
