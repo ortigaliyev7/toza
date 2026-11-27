@@ -49,6 +49,12 @@ position:fixed;inset:0;z-index:9999;background:rgba(10,10,40,.45);display:flex;a
 .tz-hint{color:var(--tx2);font:500 12.5px/1.4 'Inter',sans-serif;margin:6px 2px 0}
 .tz-pop textarea{font:500 15px/1.4 'Inter',system-ui,sans-serif!important;border-radius:16px!important;background:var(--in)!important;border:1px solid var(--cb)!important;padding:12px 14px!important;color:var(--tx)!important;outline:none;width:100%;box-sizing:border-box;resize:vertical}
 .tz-pop textarea:focus{border-color:var(--ac)!important;box-shadow:0 0 0 3px var(--acbg)}
+.tz-upd{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99998;display:flex;align-items:center;gap:10px;width:min(440px,calc(100vw - 24px));box-sizing:border-box;padding:10px 10px 10px 12px;border-radius:20px;background:rgba(30,34,86,.94);color:#F3F4FF;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:0 12px 30px rgba(10,10,50,.35);font:500 13.5px/1.35 'Inter',system-ui,sans-serif;animation:tzp .2s ease-out}
+.tz-upd-ic{flex:none;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--tz-a,#5866F0),var(--tz-b,#3F4EDB))}
+.tz-upd-t{flex:1;min-width:0}
+.tz-upd button{flex:none;height:34px;border:0;border-radius:12px;padding:0 12px;font:700 13px/1 'Inter',system-ui,sans-serif;cursor:pointer}
+.tz-upd-go{background:#fff;color:#3F4EDB}
+.tz-upd-later{background:rgba(255,255,255,.12);color:#F3F4FF}
 `;
 export function ensureStyle() {
   if(document.getElementById('tz-style')) return;

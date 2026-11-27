@@ -28,6 +28,9 @@ node brand.mjs "$SRC"
 # Toza zaxirasi: tweb'ga minimal o'zgartirishlar (patches/*.patch), asosiy kod overlay/src/lib/toza/ da
 for p in patches/*.patch; do git -C "$SRC" apply --whitespace=nowarn "$(pwd)/$p"; done
 [ -n "${VITE_TB_URL:-}" ] || echo "ESLATMA: VITE_TB_URL berilmagan — zaxira serveri sozlanmagan bo'ladi (.env.example)"
+# Toza versiyasi: har yig'ishda yangi (Railway commit SHA bo'lsa o'sha, aks holda vaqt). Ilova shu qiymat bilan serverdagi `toza-version.txt` ni solishtirib o'zi yangilanadi.
+export VITE_TOZA_BUILD="${TOZA_BUILD:-${RAILWAY_GIT_COMMIT_SHA:-$(date -u +%Y%m%d%H%M%S)}}"
+VITE_TOZA_BUILD="${VITE_TOZA_BUILD:0:12}"
 cd "$SRC"
 pnpm install --frozen-lockfile
 pnpm exec vite build
@@ -35,5 +38,6 @@ pnpm exec vite build
 # `public/` da eski tayyor yig'ma ham bor (js/html/version) — uni ko'chirmaymiz, faqat statikni.
 for f in assets changelogs browserconfig.xml site.webmanifest site_apple.webmanifest; do [ -e "public/$f" ] && cp -R "public/$f" dist/; done
 [ -f dist/assets/fonts/tgico.woff ] || { echo "XATO: dist/assets/fonts/tgico.woff yo'q — ikonkalar chiqmaydi"; exit 1; }
+node -e 'const fs=require("fs");const notes=JSON.parse(fs.readFileSync("../toza-changelog.json","utf8"));fs.writeFileSync("dist/toza-version.txt",JSON.stringify({v:process.env.VITE_TOZA_BUILD,notes:notes.slice(0,3)}))'
 rm -rf ../dist && cp -R dist ../dist
-echo "tayyor: dist/"
+echo "tayyor: dist/ (versiya $VITE_TOZA_BUILD)"

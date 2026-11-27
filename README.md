@@ -58,3 +58,8 @@ Chap menyu → **Toza sozlamalari** (`overlay/src/lib/toza/settings.ts`, sozlama
 
 ## Toza profilim
 Chap menyu → **Toza profilim**: Toza holati (zaxira, PIN qulf, xabar berish, hajm), shaxsiy status/belgi/rang mavzusi (faqat shu brauzerda), chatlar boshqaruvi va xavfsizlik tarixi. Sharpa bilan bog'liq emas.
+
+## Avtomatik yangilanish
+Har yig'ishda `build.sh` versiya belgilaydi (`VITE_TOZA_BUILD`: Railway commit SHA yoki vaqt) va `dist/toza-version.txt` yozadi. Ochiq Toza har 5 daqiqada va ekranga qaytganda shu faylni tekshiradi (`overlay/src/lib/toza/update.ts`):
+- Toza fonda bo'lsa: darrov qayta yuklanadi. Ekranda bo'lsa: 10 soniyalik ogohlantirish («Hozir» / «Keyinroq»). Foydalanuvchi yozayotgan, oyna ochiq yoki ovoz/video ijro bo'layotgan bo'lsa kutadi.
+- Qayta ochilgach bir marta **«Toza yangilandi»** oynasi chiqadi. Matni `toza-changelog.json` ning birinchi yozuvidan olinadi: **har deploydan oldin shu faylga yangi yozuv qo'shing** (eng yangisi tepada).
