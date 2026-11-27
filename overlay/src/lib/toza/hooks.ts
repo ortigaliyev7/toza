@@ -10,6 +10,7 @@ import {anyGhost, applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from '
 import {matchKeyword} from './tools-core';
 import {bindTranslitKeys} from './translit';
 import {mountQuickBar} from './quickbar';
+import {startAutoUpdate} from './update';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -342,6 +343,7 @@ export function startTozaBackup() {
   applyFlags();
   bindTranslitKeys();
   try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
+  try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
   document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
