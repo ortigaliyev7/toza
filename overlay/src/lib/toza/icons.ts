@@ -40,6 +40,11 @@ const P: Record<string, string> = {
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   plus: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
   contact: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.2c1.2-2 3.2-3.2 5.5-3.2s4.3 1.2 5.5 3.2"/>',
+  shield: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/>',
+  signal: '<path d="M4 19.5v-3"/><path d="M9 19.5v-7"/><path d="M14 19.5v-11"/><path d="M19 19.5v-15"/>',
+  phone: '<path d="M5 4.5h3.5l1.8 4.5-2.3 1.4a11 11 0 0 0 5.6 5.6l1.4-2.3 4.5 1.8v3.5a2 2 0 0 1-2 2A16.5 16.5 0 0 1 3 6.5a2 2 0 0 1 2-2z"/>',
+  install: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M12 7.5v7"/><path d="M9 11.8l3 3 3-3"/>',
+  save: '<path d="M5 3.5h11l3.5 3.5v13.5h-14.5z"/><path d="M8 3.5v5h7v-5"/><rect x="8" y="13" width="8" height="5" rx="1"/>',
   chevron: '<path d="M9.5 6l6 6-6 6"/>'
 };
 export function icon(name: string, size = 20): SVGSVGElement {
