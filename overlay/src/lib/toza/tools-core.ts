@@ -283,8 +283,8 @@ export function eyeCareLayers(c: EyeCare): {warm: string; dim: number} {
 }
 
 // ---------------------------------------------------------------- kanal va guruhlarni saralash
-export type ChatInfo = {id: string; name: string; kind: 'channel' | 'group'; unread: number; lastMsg: number; muted: boolean; archived: boolean; opened?: number};
-export type ChatFilter = 'all' | 'channels' | 'groups' | 'notOpened' | 'unreadMany' | 'unread' | 'silent' | 'muted' | 'archived';
+export type ChatInfo = {id: string; name: string; kind: 'channel' | 'group' | 'user' | 'bot'; deleted?: boolean; unread: number; lastMsg: number; muted: boolean; archived: boolean; opened?: number};
+export type ChatFilter = 'all' | 'channels' | 'groups' | 'private' | 'bots' | 'deleted' | 'notOpened' | 'unreadMany' | 'unread' | 'silent' | 'muted' | 'archived';
 /** Toza qachondan beri ochilgan chatlarni eslab boryapti (sekund) — shunga qarab «ochilmagan» hisoblanadi. */
 export function notOpened(c: ChatInfo, now: number, trackSince: number, days = 30): boolean {
   const edge = now - days * DAY;
@@ -297,6 +297,9 @@ export function matchChat(c: ChatInfo, f: ChatFilter, now: number, trackSince = 
     case 'all': return true;
     case 'channels': return c.kind === 'channel';
     case 'groups': return c.kind === 'group';
+    case 'private': return c.kind === 'user';
+    case 'bots': return c.kind === 'bot';
+    case 'deleted': return !!c.deleted;
     case 'notOpened': return notOpened(c, now, trackSince);
     case 'unreadMany': return c.unread >= 50;
     case 'unread': return c.unread > 0;

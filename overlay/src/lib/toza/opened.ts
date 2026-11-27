@@ -1,4 +1,4 @@
-// Qaysi kanal/guruh qachon ochilganini eslab borish (faqat shu brauzerda). Telegram buni saqlamaydi,
+// Qaysi chat qachon ochilganini eslab borish (faqat shu brauzerda). Telegram buni saqlamaydi,
 // shuning uchun «uzoq vaqt ochilmagan» toifasi Toza kuzatuvni boshlagan kundan aniqroq bo'lib boradi.
 import {hotReloadGuard, hotReloadGuardReady} from '@lib/solidjs/hotReloadGuardProvider';
 
@@ -8,7 +8,7 @@ export function openedMap(): Record<string, number> { try { return JSON.parse(lo
 export const trackSince = () => { try { return +(localStorage.getItem(LS_SINCE) || 0); } catch{ return 0; } };
 
 function record(peerId: number | string) {
-  if(!peerId || Number(peerId) > 0) return;                         // faqat kanal va guruhlar
+  if(!peerId) return;
   try {
     const m = openedMap();
     m[String(peerId)] = now();

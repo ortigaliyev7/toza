@@ -25,7 +25,7 @@ function statusText(c: ContactInfo, now: number): string {
   }
 }
 
-async function loadContacts(): Promise<ContactInfo[]> {
+export async function loadContacts(): Promise<ContactInfo[]> {
   const mgr = (rootScope as any).managers;
   const ids: (string | number)[] = await mgr.appUsersManager.getContacts(undefined, false, 'none');
   const out: ContactInfo[] = [];

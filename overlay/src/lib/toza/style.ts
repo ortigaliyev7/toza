@@ -76,6 +76,14 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-cc-confirm button{width:100%;margin-top:8px}
 .tz-sel{flex:none;height:36px;padding:0 8px;border-radius:10px;border:1px solid var(--cb);background:var(--in);color:var(--tx);font:inherit}
 .tz-cc-badge{flex:none;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--btn);color:#fff;font-size:12.5px;font-weight:600;display:grid;place-items:center;box-sizing:border-box}
+.tz-selbar{display:flex;align-items:center;gap:6px;padding-inline-end:10px;position:absolute;inset-inline:0;z-index:4;background:var(--surface-color);border-bottom:1px solid var(--border-color);opacity:0;transition:opacity .18s}
+.tz-selbar.in{opacity:1}
+.tz-selbar-row{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;padding:8px 10px;scrollbar-width:none}
+.tz-selbar-row::-webkit-scrollbar{display:none}
+.tz-selbar-row button{flex:none;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--border-color);background:var(--background-color);color:var(--primary-text-color);font:500 13.5px/1 var(--font-regular,system-ui,sans-serif);cursor:pointer;white-space:nowrap}
+.tz-selbar-row button.on{background:var(--primary-color);border-color:transparent;color:#fff}
+.tz-selbar-row button.busy{opacity:.55}
+.tz-selbar .tz-selbar-del{flex:none;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;font:600 13.5px/1 var(--font-regular,system-ui,sans-serif);cursor:pointer;background:var(--danger-color,#e53935);border-color:transparent;color:#fff}
 .tz-hud{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:16px;background:rgba(0,0,0,.62);color:#fff;font:500 15px/1.2 var(--font-regular,system-ui,sans-serif);opacity:0;pointer-events:none;transition:opacity .18s;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tz-hud.on{opacity:1}
 .tz-hud:has(button).on{pointer-events:auto}
