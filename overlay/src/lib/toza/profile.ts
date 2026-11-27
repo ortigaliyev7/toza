@@ -1,5 +1,5 @@
 import {alertsOn} from './alerts';
-import {applyProfileTheme, counts, getProfile, isEnabled, isPaid, serverStatus, setProfile, startTozaBackup} from './hooks';
+import {applyProfileTheme, counts, getProfile, isEnabled, watching, serverStatus, setProfile, startTozaBackup} from './hooks';
 import {ensureStyle} from './style';
 
 const ACCENTS = ['', '#3390ec', '#2a9d4b', '#e8832a', '#d6409f', '#7a5af8', '#d33a3a', '#12a3a8'];
@@ -40,10 +40,10 @@ export function openTozaProfile() {
       isEnabled() ? line('✅', 'Zaxira yoqilgan') : line('⚪', 'Zaxira o\'chiq', 'Menyudan «Toza zaxira» orqali yoqing'),
       localStorage.getItem('toza_lock') ? line('🔒', 'PIN qulf yoqilgan') : line('🔓', 'PIN qulf yoqilmagan'),
       alertsOn() ? line('🔔', 'O\'chirilgan va tahrirlangan haqida xabar') : line('🔕', 'Xabar berish o\'chiq'),
-      isPaid() ? line('⭐', 'Obuna ulangan', 'Rasm, video, ovoz, hujjat va boshqa fayllar ham saqlanadi') : line('📝', 'Faqat matn saqlanadi')
+      watching() ? line('👁', 'O\'chirilgan va tahrirlangan xabarlar ko\'rinadi') : line('⚪', 'O\'chirilgan va tahrirlangan xabarlar o\'chiq')
     ];
     stat.replaceChildren(...rows);
-    if(isEnabled()) {
+    if(watching()) {
       try {
         const c = await counts();
         stat.append(line('💬', `${c.total} ta xabar saqlangan`, `o'chirilgan: ${c.deleted}`));

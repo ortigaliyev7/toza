@@ -5,7 +5,7 @@ import appDownloadManager from '@lib/appDownloadManager';
 import choosePhotoSize from '@lib/appManagers/utils/photos/choosePhotoSize';
 import getPeerId from '@lib/appManagers/utils/peers/getPeerId';
 import {ensureStyle} from './style';
-import {archive, isEnabled, isPaid, peerTitle, updateReadButton} from './hooks';
+import {archive, watching, setWatching, peerTitle, updateReadButton} from './hooks';
 import {getFlags, keywordsOn, keywordsRaw, saveOnceOn, setFlags, setKeywords, setKeywordsOn, setSaveOnce} from './prefs';
 import type {TozaFlags} from './flags';
 import {mediaNode} from './media-view';
@@ -134,7 +134,9 @@ export function openTozaSettings() {
       title('Toza sozlamalari'),
       sec('Ko\'rinmas rejim', ...ghostRows, h('div', {className: 'tz-hint'}, 'Dastlabki uchtasi bosh ekranda ham bor. Telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.')),
       sec('Saqlash',
-        check('Bir martalik media', isPaid() ? 'Ko\'rilgach yo\'qoladigan rasm/video zaxiraga yoziladi.' : 'Sharpa obunasi va Toza zaxirasi bilan ishlaydi.', saveOnceOn, setSaveOnce, 'timer'),
+        check('O\'chirilgan va tahrirlangan xabarlar', 'Bepul. Shaxsiy chatlarda boshqalar o\'chirgan xabar o\'z joyida qoladi, tahrirlanganining eski matni ostida ko\'rinadi.', watching, setWatching, 'trash'),
+        nav('chat', 'O\'chirilgan xabarlar ro\'yxati', '', () => { close(); import('./ui').then((m) => m.openTozaBackup()); }),
+        check('Bir martalik media', 'Ko\'rilgach yo\'qoladigan rasm/video shu qurilmada saqlanadi.', saveOnceOn, setSaveOnce, 'timer'),
         nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce()),
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
       sec('Vositalar',
@@ -165,7 +167,7 @@ export function openTozaSettings() {
   async function viewOnce() {
     const list = h('div', {}, 'Yuklanmoqda…');
     sub('Bir martalik media', list);
-    if(!isEnabled()) { list.replaceChildren(note('Avval Toza zaxirasini yoqing.')); return; }
+    if(!watching()) { list.replaceChildren(note('Avval «O\'chirilgan va tahrirlangan» → «Chatda ko\'rsatish»ni yoqing.')); return; }
     const items = await archive.onceMessages();
     list.replaceChildren();
     if(!items.length) { list.append(note('Hozircha yo\'q.')); return; }

@@ -16,7 +16,7 @@ index 6c7c795..3dbbc9a 100644
        verify: () => IS_CALL_SUPPORTED || IS_CONFERENCE_CALL_SUPPORTED
 +    }, {
 +      icon: 'lock',
-+      textElement: (() => { const s = document.createElement('span'); s.textContent = 'Toza zaxira'; return s; })(),
++      textElement: (() => { const s = document.createElement('span'); s.textContent = 'O\'chirilgan xabarlar'; return s; })(),
 +      onClick: () => {
 +        closeTabsBefore(() => {
 +          import('@lib/toza/ui').then((m) => m.openTozaBackup());

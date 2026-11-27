@@ -68,6 +68,14 @@ export const serverUrl = (): string => {
   return '';
 };
 export const isEnabled = () => localStorage.getItem(LS_ON) === '1' && !!localStorage.getItem(LS_CODE);
+/** O'chirilgan va tahrirlangan xabarlarni shu qurilmada ushlash: kod va obunasiz, odatda yoqilgan. Server zaxirasi (isEnabled) — alohida, ixtiyoriy. */
+const LS_WATCH = 'toza_watch';
+export const watching = () => isEnabled() || (() => { try { return localStorage.getItem(LS_WATCH) !== '0'; } catch{ return true; } })();
+export function setWatching(on: boolean) {
+  try { localStorage.setItem(LS_WATCH, on ? '1' : '0'); } catch{ /* xotira yopiq */ }
+  if(on) markSeen();
+  scheduleGhosts(100); updateBadge();
+}
 export const savedCode = () => localStorage.getItem(LS_CODE) || '';
 export {generateRecoveryCode, normalizeCode, TozaApiError};
 
@@ -90,7 +98,9 @@ export function setChatEnabled(peerId: string | number, on: boolean) {
 // ---- Obuna bor-yo'qligi (serverdan): fayllar (ovoz, rasm, video, hujjat...) faqat obunada
 // Obuna holati sahifa ochilganda darrov ma'lum bo'lsin (serverdan javob kelguncha oldingi qiymat): o'chirilgan/tahrirlangan xabarlar bir lahza yo'qolib-chiqmasin
 let paid = (() => { try { return localStorage.getItem('toza_paid') === '1'; } catch{ return false; } })();
-export const isPaid = () => paid;
+/** Hozircha hamma imkoniyat bepul (2026-11-27, egasining qarori). Pullik qilish uchun FREE = false. Server (Sharpa) fayl yuklashni o'zi tekshiradi: mediaAllowed haqiqiy obunaga qaraydi. */
+const FREE = true;
+export const isPaid = () => FREE || paid;
 export async function refreshPaid() {
   const was = paid;
   try { const sy = await ensureSync(); paid = !!(sy && (await sy.status()).paid); } catch{ /* tarmoq yo'q: oldingi qiymat qoladi */ }
@@ -111,7 +121,7 @@ const toB64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
 /** Ovoz va fayllar (obunada): rasm, video, dumaloq video, GIF, musiqa, hujjat, stiker — yuklab olib shifrlanadigan arxivga qo'shamiz.
  *  Xato bo'lsa xabar matni baribir saqlanadi. */
 async function captureMedia(m: any, inc: Incoming) {
-  if(!paid || !m?.media) return;
+  if(!isPaid() || !m?.media) return;
   if(inc.once && !saveOnceOn()) return;                                       // bir martalik media: faqat foydalanuvchi yoqqan bo'lsa
   const k = inc.peerId + ':' + inc.mid;
   if(mediaTried.has(k)) return;
@@ -163,7 +173,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const backfillState = {running: false, chats: 0, saved: 0, at: 0};
 
 export async function backfill(sinceMs: number): Promise<number> {
-  if(backfillState.running || !sinceMs || !isEnabled()) return 0;
+  if(backfillState.running || !sinceMs || !watching()) return 0;
   backfillState.running = true;
   let saved = 0, chats = 0;
   const since = Math.floor(sinceMs / 1000) - 120;                                  // 2 daqiqa zaxira bilan
@@ -176,7 +186,7 @@ export async function backfill(sinceMs: number): Promise<number> {
     }
     const peers = dialogs.filter((d) => d?.peerId && chatEnabled(d.peerId) && d.top_message).slice(0, 200);
     for(const d of peers) {
-      if(chats >= BACKFILL_MAX_CHATS || !isEnabled()) break;
+      if(chats >= BACKFILL_MAX_CHATS || !watching()) break;
       const top = await mgr.appMessagesManager.getMessageByPeer(d.peerId, d.top_message).catch((): any => undefined);
       if(!top || top.date < since) continue;
       chats++;
@@ -197,7 +207,7 @@ export async function backfill(sinceMs: number): Promise<number> {
   return saved;
 }
 
-const canAlert = () => paid && alertsOn() && isEnabled();
+const canAlert = () => isPaid() && alertsOn() && watching();
 
 async function capture(m: any, announce = false) {
   const inc = toIncoming(m);
@@ -207,7 +217,7 @@ async function capture(m: any, announce = false) {
   if(inc.text || inc.kind) st = await archive.capture(inc).catch(() => undefined);
   if(st === 'edited') scheduleGhosts(300);                                    // xabar ostidagi tahrir tarixi yangilansin
   if(st === 'edited' && before !== undefined && before !== inc.text) peerTitle(inc.peerId).then((who) => pushAlert({kind: 'edited', who, text: inc.text, old: before}));
-  if(isEnabled()) captureMedia(m, inc);
+  if(watching()) captureMedia(m, inc);
 }
 
 /** O'chirilgan (boshqalarning) xabarlari: arxivdagi matn bilan xabar beramiz, so'ng «o'chirilgan» deb belgilaymiz. */
@@ -263,7 +273,7 @@ function scheduleGhosts(delay = 500) {
   clearTimeout(ghostTimer);
   ghostTimer = window.setTimeout(() => {
     // o'chirilgan va tahrirlangan xabarlarni chatda ko'rsatish — Toza obunasi (pullik) imkoniyati
-    if(!isEnabled() || !paid) { clearGhosts(); return; }
+    if(!watching() || !isPaid()) { clearGhosts(); return; }
     const deps = {records: () => store.all(), voiceOf: (p: string, m: number) => archive.voiceOf(p, m), mediaOf: (p: string, m: number) => archive.mediaOf(p, m), enabled: chatEnabled};
     injectGhosts(deps).then(() => injectEdits(deps));
   }, delay);
@@ -274,7 +284,7 @@ let currentPeer = '';
 let badgeEl: HTMLElement | null = null;
 async function updateBadge() {
   try {
-    const n = isEnabled() && paid && currentPeer && chatEnabled(currentPeer) ? (await store.all()).filter((m) => m.peerId === currentPeer && m.deleted && !isBlobKey(m.k)).length : 0;
+    const n = watching() && isPaid() && currentPeer && chatEnabled(currentPeer) ? (await store.all()).filter((m) => m.peerId === currentPeer && m.deleted && !isBlobKey(m.k)).length : 0;
     if(!n) { badgeEl?.remove(); badgeEl = null; return; }
     if(!badgeEl) {
       badgeEl = document.createElement('button');
@@ -366,7 +376,7 @@ async function syncOnline() {
 export function startTozaBackup() {
   if(started) return;
   started = true;
-  const on = (fn: (...a: any[]) => any) => (...a: any[]) => { if(isEnabled()) fn(...a); };
+  const on = (fn: (...a: any[]) => any) => (...a: any[]) => { if(watching()) fn(...a); };
   rootScope.addEventListener('history_append', on(({message}: any) => capture(message)));
   rootScope.addEventListener('history_append', ({message}: any) => { onKeyword(message).catch((): void => undefined); });
   bindTranslitKeys();
@@ -393,8 +403,8 @@ export function startTozaBackup() {
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));
   applyProfileTheme();
-  if(isEnabled()) { const last = checkGap(); setTimeout(() => { backfill(last).catch((): void => undefined); }, 6000); }
-  window.setInterval(() => { if(isEnabled()) markSeen(); }, 30000);
+  if(watching()) { const last = checkGap(); setTimeout(() => { backfill(last).catch((): void => undefined); }, 6000); }
+  window.setInterval(() => { if(watching()) markSeen(); }, 30000);
   window.addEventListener('pagehide', markSeen);
   setAlertOpener(() => { import('./ui').then((m) => m.openTozaBackup()); });
   observeBubbles();

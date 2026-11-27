@@ -4,7 +4,7 @@ import {alertsOn, setAlertsOn} from './alerts';
 import {viewExport, viewLock, viewSearch, viewStats, viewTemplates} from './tools';
 import type {Ctx} from './tools';
 import {fmtDuration} from './alerts';
-import {archive, backfillState, chatEnabled, gaps, purgeChat, chatUsage, counts, isPaid, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
+import {archive, backfillState, watching, setWatching, chatEnabled, gaps, purgeChat, chatUsage, counts, setChatEnabled, disableBackup, enableBackup, flushNow, generateRecoveryCode, isEnabled, linkSharpa, normalizeCode, peerTitle, restoreBackup, savedCode, serverStatus, serverUrl, startTozaBackup, state, TozaApiError} from './hooks';
 
 const ERR: Record<string, string> = {
   bad_code: 'Kod noto\'g\'ri yozilgan. 26 belgi bo\'lishi kerak (harf va 2–7 raqamlari).',
@@ -58,12 +58,18 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
     btn('Shablonlar', () => viewTemplates(ctx), true), btn('Qulf (PIN)', () => viewLock(ctx), true));
 
   async function viewOff() {
-    const msg = h('div');
+    const msg = h('div'), list = h('div');
     const codeIn = h('input', {placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX', style: 'width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;font:inherit;letter-spacing:1px;'}) as HTMLInputElement;
     show(
-      title('Toza zaxirasi'),
-      note('O\'chirilgan va tahrirlangan xabarlarni saqlaydi. Xabarlar brauzeringizda shifrlanadi, server ularni o\'qiy olmaydi. Telegram akkauntingiz o\'chsa ham zaxira saqlanadi.'),
-      row(btn('Yangi zaxira yaratish', () => viewNew())),
+      title('O\'chirilgan va tahrirlangan'),
+      watchRow(),
+      row(btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true)),
+      alertRow(),
+      list,
+      h('hr', {style: 'border:0;border-top:1px solid rgba(127,127,127,.3);margin:14px 0'}),
+      h('b', {}, 'Serverga zaxira (ixtiyoriy)'),
+      note('Telefon yoki brauzer almashsa ham xabarlar yo\'qolmasin desangiz. Xabarlar brauzeringizda shifrlanadi, server ularni o\'qiy olmaydi.'),
+      row(btn('Yangi zaxira yaratish', () => viewNew(), true)),
       h('b', {}, 'Imkoniyatlar'),
       toolsRow(),
       h('hr', {style: 'border:0;border-top:1px solid rgba(127,127,127,.3);margin:14px 0'}),
@@ -118,13 +124,25 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       ...g.map((x) => h('div', {}, `${fmtDate(Math.floor(x.from / 1000))} → ${fmtDate(Math.floor(x.to / 1000))} (${fmtDuration(x.to - x.from)})`)));
   }
 
+  /** Asosiy kalit: kod va obunasiz, faqat shu qurilmada. */
+  function watchRow() {
+    let on = watching();
+    const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'} as any);
+    const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--ac,#4A5AE8)' : 'transparent'; };
+    paint();
+    const label = h('div', {}, h('div', {style: 'font-weight:600'} as any, 'Chatda ko\'rsatish'),
+      h('div', {style: 'font-size:12px;opacity:.7'} as any, 'Bepul, kod kerak emas. Shaxsiy chatlarda boshqalar o\'chirgan xabar o\'z joyida qoladi, tahrirlanganining eski matni ostida ko\'rinadi. Faqat Toza ochiq turganda kelgan xabarlar ushlanadi.'));
+    return Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);cursor:pointer;user-select:none;'} as any, box, label), {role: 'checkbox', tabIndex: 0,
+      onclick: () => { if(isEnabled()) return; on = !on; setWatching(on); paint(); }});
+  }
+
   function alertRow() {
     let on = alertsOn();
     const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
     const paint = () => { box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--ac,#4A5AE8)' : 'transparent'; };
     paint();
     const label = h('div', {}, h('div', {style: 'font-weight:600'}, 'Tahrirlangan va o\'chirilgan xabarlar haqida xabar berish'),
-      h('div', {style: 'font-size:12px;opacity:.7'}, isPaid() ? 'Toza ochiq turganda ekranda (va ruxsat bersangiz tizim bildirishnomasi bilan) darrov ko\'rsatiladi. Toza yopiq bo\'lsa ishlamaydi.' : 'Sharpa obunasi bilan ishlaydi. Obuna ulangach o\'zi yoqiladi.'));
+      h('div', {style: 'font-size:12px;opacity:.7'}, 'Toza ochiq turganda ekranda (va ruxsat bersangiz tizim bildirishnomasi bilan) darrov ko\'rsatiladi. Toza yopiq bo\'lsa ishlamaydi.'));
     return Object.assign(h('div', {style: 'display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);cursor:pointer;user-select:none;'}, box, label), {role: 'checkbox', tabIndex: 0,
       onclick: () => { on = !on; setAlertsOn(on); paint(); if(on && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().catch(() => undefined); }});
   }
@@ -150,11 +168,12 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
         btn('O\'chirilgan xabarlar', async() => { await showDeleted(list); }, true),
         btn('Kodni ko\'rsatish', () => { msg.replaceChildren(note('Tiklash kodi: ' + savedCode().replace(/(.{4})/g, '$1-').replace(/-$/, ''))); }, true)
       ),
+      watchRow(),
       h('b', {}, 'Imkoniyatlar'),
       toolsRow(),
       alertRow(),
-      h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Matn bepul saqlanadi. Obuna bilan: o\'chirilgan va tahrirlangan xabarlar chatning o\'zida ko\'rinadi, fayllar (rasm, video, ovoz, GIF, musiqa, hujjat, stiker) ham saqlanadi. Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
+      h('b', {}, 'Sharpa bilan bog\'lash (ixtiyoriy)'),
+      note('Sharpa botida /zaxira yozing va kodni kiriting: fayllar (rasm, video, ovoz) ham serverga saqlanadi.'),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       gapNote(),
@@ -195,10 +214,6 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
   }
 
   async function showDeleted(list: HTMLElement) {
-    if(!isPaid()) {
-      list.replaceChildren(h('b', {}, 'O\'chirilgan xabarlar'), note('O\'chirilgan va tahrirlangan xabarlarni ko\'rish Sharpa obunasi bilan ishlaydi. Xabarlar hozir ham saqlanyapti: obunani ulasangiz, oldingilari ham ko\'rinadi. Sharpa botida /zaxira yozing va kodni pastda kiriting.'));
-      return;
-    }
     const items = await archive.deletedMessages();
     list.replaceChildren(h('b', {}, `O'chirilgan xabarlar (${items.length})`));
     if(!items.length) { list.append(note('Hozircha yo\'q. Boshqalar xabarni o\'chirsa, shu yerda ko\'rinadi.')); return; }
@@ -219,7 +234,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
   }
 
   const sub = (t: string, ...k: Node[]) => show(title(t), ...k, row(btn('Orqaga', () => viewOn(), true)));
-  if(view && isEnabled()) {
+  if(view && watching()) {
     const list = h('div');
     if(view === 'chats') { sub('Chatlar boshqaruvi', list); showChats(list); }
     else { sub('Xavfsizlik tarixi', alertRow(), gapNote(), list); showDeleted(list); }
