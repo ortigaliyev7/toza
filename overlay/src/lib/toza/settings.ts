@@ -14,6 +14,9 @@ import {convertComposer, sendScript, setSendScript, setShowScript, showScript} f
 import type {Script} from './translit';
 import {icon} from './icons';
 import {FLAGS_EVENT} from './quickbar';
+import {eyeCare, setEyeCare} from './eyecare';
+import {eyeCareActive} from './tools-core';
+import {playerPrefs, setPlayerPrefs} from './player';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
   const el = document.createElement(tag);
@@ -45,14 +48,21 @@ function nav(ic: string, label: string, sub: string, fn: () => any, soft = false
 }
 /** Uch tanlovli tugmalar qatori: O'zgartirmaslik / Lotin / Kirill. */
 function seg(get: () => Script, set: (v: Script) => void) {
+  return choice<Script>([['off', 'O\'zgartirmaslik'], ['lat', 'Lotin'], ['cyr', 'Кирилл']], get, set);
+}
+/** Bir nechta tanlovli tugmalar qatori (bittasi tanlanadi). */
+function choice<T extends string | number>(opts: [T, string][], get: () => T, set: (v: T) => void) {
   const wrap = h('div', {className: 'tz-seg', role: 'radiogroup'});
-  const opts: [Script, string][] = [['off', 'O\'zgartirmaslik'], ['lat', 'Lotin'], ['cyr', 'Кирилл']];
-  const paint = () => wrap.querySelectorAll('button').forEach((b) => { const on = (b as HTMLElement).dataset.v === get(); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+  const paint = () => wrap.querySelectorAll('button').forEach((b) => { const on = (b as HTMLElement).dataset.v === String(get()); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
   for(const [v, label] of opts) wrap.append(h('button', {type: 'button', role: 'radio', onclick: () => { set(v); paint(); }}, label));
-  wrap.querySelectorAll('button').forEach((b, i) => ((b as HTMLElement).dataset.v = opts[i][0]));
+  wrap.querySelectorAll('button').forEach((b, i) => ((b as HTMLElement).dataset.v = String(opts[i][0])));
   paint();
   return wrap;
 }
+const eyeSummary = () => {
+  const e = eyeCare();
+  return e.mode === 'off' ? 'O\'chiq' : e.mode === 'on' ? 'Doim yoqilgan' : `Kechqurun ${String(e.from).padStart(2, '0')}:00 – ${String(e.to).padStart(2, '0')}:00`;
+};
 const scriptSummary = () => {
   const n: Record<Script, string> = {off: '', lat: 'lotinda', cyr: 'kirillda'};
   const a = showScript(), b = sendScript();
@@ -95,7 +105,7 @@ export function openTozaSettings() {
     return b;
   };
   const sec = (head: string, ...k: Node[]) => h('div', {className: 'tz-sec'}, h('b', {}, head), ...k);
-  const show = (...nodes: Node[]) => panel.replaceChildren(...nodes);
+  const show = (...nodes: Node[]) => { panel.replaceChildren(...nodes); panel.scrollTop = 0; };
   const sub = (t: string, ...k: Node[]) => show(title(t), ...k, row(btn('Orqaga', () => main())));
 
   const flag = (k: keyof TozaFlags, ic: string, label: string, subText: string) => check(label, subText, () => getFlags()[k], async(v) => { await setFlags({[k]: v}); updateReadButton(); window.dispatchEvent(new Event(FLAGS_EVENT)); }, ic);
@@ -121,6 +131,9 @@ export function openTozaSettings() {
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
       sec('Vositalar',
         nav('contacts', 'Kontaktlarni tozalash', 'Uzoq kirmagan, o\'chirilgan akkaunt, chat yo\'q…', () => { close(); import('./contacts').then((m) => m.openContactsCleaner(() => openTozaSettings())); })),
+      sec('Ko\'rish',
+        nav('eye', 'Ko\'z asrash', eyeSummary(), () => viewEyeCare()),
+        nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer())),
       sec('Qulayliklar',
         nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
         nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),
@@ -195,6 +208,47 @@ export function openTozaSettings() {
       }, 'bell')),
       note('So\'zlarni vergul yoki yangi qator bilan ajrating (50 tagacha). Katta-kichik harf farqi yo\'q, so\'z boshidan qidiriladi: «ish» — «ishlar»ni topadi, «kishi»ni emas.'),
       ta, row(btn('Saqlash', () => { setKeywords(ta.value); msg.replaceChildren(note(`Saqlandi: ${parseKeywords(ta.value).length} ta so'z.`, '#2a9d4b')); }, true)), msg);
+  }
+
+  function viewEyeCare() {
+    const c = eyeCare();
+    const hours = Array.from({length: 24}, (_, i) => i);
+    const sel = (get: () => number, set: (v: number) => void) => {
+      const x = h('select', {className: 'tz-sel', onchange: () => set(+x.value)}) as HTMLSelectElement;
+      hours.forEach((n) => x.append(h('option', {value: String(n)}, `${String(n).padStart(2, '0')}:00`)));
+      x.value = String(get());
+      return x;
+    };
+    const st = h('div', {className: 'tz-hint'});
+    const paint = () => { const e = eyeCare(); st.textContent = eyeCareActive(e, new Date().getHours()) ? 'Hozir yoqilgan.' : e.mode === 'night' ? `Hozir o'chiq, ${String(e.from).padStart(2, '0')}:00 da yoqiladi.` : 'Hozir o\'chiq.'; };
+    const upd = (p: Parameters<typeof setEyeCare>[0]) => { setEyeCare(p); paint(); };
+    paint();
+    sub('Ko\'z asrash',
+      note('Ekranga iliq rang beradi va ko\'k nurni kamaytiradi. Kechqurun ko\'z kamroq charchaydi va uyqu buzilmaydi. Faqat shu qurilmada ishlaydi.'),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Rejim'),
+        choice<string>([['off', 'O\'chiq'], ['on', 'Doim'], ['night', 'Kechqurun']], () => eyeCare().mode, (v) => upd({mode: v as any})),
+        h('div', {className: 'tz-row'}, h('span', {className: 'tz-ic'}, icon('moon')), h('div', {className: 'tz-tx'}, 'Kechqurun rejimi vaqti',
+          h('div', {className: 'tz-sub', style: 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px'}, sel(() => c.from, (v) => upd({from: v})), 'dan', sel(() => c.to, (v) => upd({to: v})), 'gacha'))), st),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Iliqlik'),
+        choice<number>([[1, 'Yengil'], [2, 'O\'rta'], [3, 'Kuchli']], () => eyeCare().warm, (v) => upd({warm: v as any}))),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Xiralashtirish'),
+        choice<number>([[0, 'Yo\'q'], [1, 'Oz'], [2, 'O\'rta'], [3, 'Ko\'p']], () => eyeCare().dim, (v) => upd({dim: v as any})),
+        h('div', {className: 'tz-hint'}, 'Telefon yorqinligi eng pastda bo\'lsa ham ekran ko\'zni qamashtirsa foydali.')));
+  }
+
+  function viewPlayer() {
+    const p = (k: 'gestures' | 'resume' | 'wheel', ic: string, label: string, s: string) => check(label, s, () => playerPrefs()[k], (v) => setPlayerPrefs({[k]: v}), ic);
+    sub('Video pleyer',
+      note('Telegram\'dagi videoni ochganingizda ishlaydi. Pastki paneldagi ⚙ tugmasi: yorqinlik, takrorlash, ekranga to\'ldirish, kadrni rasm qilib saqlash.'),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Boshqaruv'),
+        p('gestures', 'expand', 'Imo-ishoralar', 'Ikki marta tegish: ortga/oldinga. To\'liq ekranda surish: chapda yorqinlik, o\'ngda ovoz, yonga vaqt.'),
+        p('wheel', 'volume', 'G\'ildirak bilan ovoz', 'Sichqoncha g\'ildiragi ovozni, Shift bilan yorqinlikni o\'zgartiradi.'),
+        p('resume', 'play', 'To\'xtagan joyidan davom ettirish', '1,5 daqiqadan uzun videolar uchun.')),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Ikki marta tegib siljitish'),
+        choice<number>([[5, '5 soniya'], [10, '10 soniya'], [15, '15 soniya']], () => playerPrefs().seek, (v) => setPlayerPrefs({seek: v as any}))),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Klaviatura'),
+        info('abc', 'J / L', 'Ortga / oldinga'), info('volume', '↑ / ↓', 'Ovoz'), info('sun', 'B / Shift+B', 'Yorqinlik'),
+        h('div', {className: 'tz-hint'}, 'Telegram\'ning o\'zida: Probel to\'xtatish, F to\'liq ekran, M ovozsiz, Alt + / − tezlik, bosib turish 2× tezlik.')));
   }
 
   function viewTranslit() {

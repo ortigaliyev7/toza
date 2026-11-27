@@ -74,6 +74,22 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-pop .tz-cc-del{width:calc(100% - 36px);margin-top:10px!important}
 .tz-pop button.tz-danger{background:var(--bd)!important;color:#fff!important}
 .tz-cc-confirm button{width:100%;margin-top:8px}
+.tz-sel{flex:none;height:36px;padding:0 8px;border-radius:10px;border:1px solid var(--cb);background:var(--in);color:var(--tx);font:inherit}
+.tz-hud{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:16px;background:rgba(0,0,0,.62);color:#fff;font:500 15px/1.2 var(--font-regular,system-ui,sans-serif);opacity:0;pointer-events:none;transition:opacity .18s;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tz-hud.on{opacity:1}
+.tz-hud:has(button).on{pointer-events:auto}
+.tz-hud-bar{display:block;width:90px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.tz-hud-bar b{display:block;height:100%;background:#fff;border-radius:2px}
+.tz-hud button{border:0;border-radius:10px;padding:6px 10px;background:rgba(255,255,255,.18);color:#fff;font:inherit;cursor:pointer}
+.tz-pbtn{color:#fff!important;display:inline-grid!important;place-items:center}
+.tz-pmenu{position:absolute;right:12px;bottom:64px;z-index:6;min-width:230px;padding:8px;border-radius:16px;background:rgba(24,24,28,.92);color:#fff;font:500 14px/1.2 var(--font-regular,system-ui,sans-serif);box-shadow:0 10px 30px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tz-pm-row{display:flex;align-items:center;gap:10px;padding:8px 10px}
+.tz-pm-row input{flex:1;accent-color:var(--primary-color,#8774e1)}
+.tz-pm-v{min-width:40px;text-align:end;font-variant-numeric:tabular-nums;opacity:.85}
+.tz-pm-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:10px;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.tz-pm-item:hover{background:rgba(255,255,255,.08)}
+.tz-pm-item.on{color:var(--primary-color,#8774e1)}
+video.tz-cover{object-fit:cover!important}
 `;
 export function ensureStyle() {
   if(document.getElementById('tz-style')) return;

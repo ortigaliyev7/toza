@@ -457,3 +457,33 @@ test('kontaktlar: toifalar va saralash', () => {
   assert.equal(sortContacts(list, 'seen', now).map((x) => x.id).join(''), 'debcfa');
   assert.equal(lastSeen(list[0], now), now);
 });
+
+import * as T from '../overlay/src/lib/toza/tools-core.ts';
+
+test('pleyer: vaqt formati, siljitish, davom ettirish', () => {
+  assert.equal(T.fmtTime(75), '1:15');
+  assert.equal(T.fmtTime(3725), '1:02:05');
+  assert.equal(T.fmtTime(-3), '0:00');
+  assert.equal(T.nextSeek(5, 100, -10), 0);
+  assert.equal(T.nextSeek(95, 100, 10), 99.9);
+  assert.equal(T.nextSeek(50, 100, 10), 60);
+  assert.equal(T.resumeAt(200, 600), 200);
+  assert.equal(T.resumeAt(5, 600), null);
+  assert.equal(T.resumeAt(590, 600), null);
+  assert.equal(T.resumeAt(30, 60), null);
+  assert.equal(T.resumeAt(undefined, 600), null);
+});
+
+test('ko\'z asrash: rejim va soat oralig\'i', () => {
+  const c = {mode: 'night', warm: 2, dim: 1, from: 21, to: 7};
+  assert.equal(T.eyeCareActive(c, 22), true);
+  assert.equal(T.eyeCareActive(c, 3), true);
+  assert.equal(T.eyeCareActive(c, 7), false);
+  assert.equal(T.eyeCareActive(c, 12), false);
+  assert.equal(T.eyeCareActive({...c, from: 9, to: 17}, 12), true);
+  assert.equal(T.eyeCareActive({...c, mode: 'off'}, 22), false);
+  assert.equal(T.eyeCareActive({...c, mode: 'on'}, 12), true);
+  const l = T.eyeCareLayers(c);
+  assert.match(l.warm, /rgba\(255, 140, 40, 0\.24\)/);
+  assert.equal(l.dim, 0.12);
+});
