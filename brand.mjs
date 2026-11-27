@@ -18,6 +18,9 @@ html = html.replace(/<path id="logo"[^>]*>/, LOGO);
 const intro = fs.readFileSync(`${src}/toza-intro.html`, 'utf8');
 must(html.includes('</body>'), '</body>');
 html = html.replace('</body>', intro + '\n  </body>');
+// Android Chrome (108+) klaviatura ochilganda sahifani siljitadi va chat sarlavhasi (profil) ekrandan chiqib ketadi.
+// `interactive-widget=resizes-content` — klaviatura chiqqanda sahifa kichrayadi, sarlavha joyida qoladi.
+if(!html.includes('interactive-widget')) html = html.replace('viewport-fit=cover"', 'viewport-fit=cover,interactive-widget=resizes-content"');
 write('index.html', html);
 
 // 3) Kirish sarlavhasi
