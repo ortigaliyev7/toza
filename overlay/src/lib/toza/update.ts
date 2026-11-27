@@ -31,14 +31,17 @@ async function fetchLatest(): Promise<{v: string; notes: Notes} | null> {
 function busy(): boolean {
   const typed = Array.from(document.querySelectorAll<HTMLElement>('.input-message-input[contenteditable="true"]')).some((el) => (el.innerText || '').trim());
   const focusInput = document.activeElement?.matches?.('input, textarea, [contenteditable="true"]');
-  return typed || playing() || !!focusInput || !!document.querySelector('.tz-back, .popup.active, .media-viewer-whole, #stories-viewer .stories-viewer') || !!document.pictureInPictureElement;
+  return typed || playing() || recording() || !!focusInput || !!document.querySelector('.tz-back, .popup.active, .media-viewer-whole, #stories-viewer .stories-viewer') || !!document.pictureInPictureElement;
 }
+
+/** Ovozli yoki video xabar yozilyaptimi (yozish to'xtab qolmasin). */
+const recording = () => !!document.querySelector('.chat-input.is-recording, .is-recording');
 
 /** Qo'ng'iroq, ovoz yoki video ijro bo'lyaptimi (fonda ham uzib qo'ymaymiz). */
 const playing = () => Array.from(document.querySelectorAll<HTMLMediaElement>('audio, video')).some((m) => !m.paused && !m.muted && m.readyState > 2);
 
 function reloadNow() {
-  if(playing()) return;                                   // keyingi tekshiruvda
+  if(playing() || recording()) return;                    // keyingi tekshiruvda
   ls.set(LS_PENDING, CURRENT);
   location.reload();
 }
@@ -61,8 +64,19 @@ function showCountdown() {
     if(left <= 0) { clearInterval(timer); busy() ? close() : reloadNow(); return; }
     paint();
   }, 1000);
-  const close = () => { clearInterval(timer); el.remove(); countdown = null; };
-  now.onclick = () => { clearInterval(timer); reloadNow(); };
+  // foydalanuvchi ekranga tegsa yoki yozsa — o'z-o'zidan qayta yuklamaymiz, faqat tugma qoladi
+  const hold = (e: Event) => {
+    if(el.contains(e.target as Node)) return;
+    clearInterval(timer);
+    txt.textContent = 'Toza\'ning yangi versiyasi tayyor. Qulay paytda «Yangilash»ni bosing.';
+    now.textContent = 'Yangilash';
+    unhold();
+  };
+  const unhold = () => { document.removeEventListener('pointerdown', hold, true); document.removeEventListener('keydown', hold, true); };
+  document.addEventListener('pointerdown', hold, true);
+  document.addEventListener('keydown', hold, true);
+  const close = () => { clearInterval(timer); unhold(); el.remove(); countdown = null; };
+  now.onclick = () => { clearInterval(timer); unhold(); reloadNow(); };
   later.onclick = () => close();                         // Toza fonga o'tganda yoki keyingi tekshiruvda yangilanadi
   document.body.append(el);
   countdown = el;
