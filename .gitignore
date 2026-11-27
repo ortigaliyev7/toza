@@ -2,3 +2,6 @@
 dist/
 .env.local
 .env
+
+# Graphify local cache
+graphify-out/cache/
