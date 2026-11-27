@@ -82,12 +82,29 @@ function showCountdown() {
   countdown = el;
 }
 
+/** Yangi versiyaning asosiy fayllarini oldindan brauzer keshiga yuklab qo'yadi: «Yangilash»dan keyin ilova darrov ochiladi. */
+let warming: Promise<void> | null = null;
+function warmUp(): Promise<void> {
+  return warming ||= (async() => {
+    try {
+      const html = await (await fetch('index.html', {cache: 'no-store'})).text();
+      const urls = [...new Set([...html.matchAll(/(?:src|href)="(\.?\/?[^"]+\.(?:js|css))"/g)].map((m) => m[1]))];
+      for(let i = 0; i < urls.length; i += 4) {
+        await Promise.all(urls.slice(i, i + 4).map((u) => fetch(u, {priority: 'low'} as RequestInit).then((r) => r.arrayBuffer()).catch((): void => undefined)));
+      }
+    } catch{ /* tarmoq: oddiy yuklanadi */ }
+  })();
+}
+const within = (p: Promise<void>, ms: number) => Promise.race([p, new Promise<void>((r) => setTimeout(r, ms))]);
+
 async function check() {
   if(!CURRENT) return;
   const latest = pending || await fetchLatest();
   if(!latest || latest.v === CURRENT) return;
   pending = latest;
-  if(document.hidden) reloadNow();                         // ko'rinmayapti: darrov, sezdirmasdan
+  const warm = warmUp();
+  if(document.hidden) await within(warm, 10000);           // ko'rinmayapti: avval fayllar yuklansin
+  if(document.hidden) reloadNow();                         // hali ham ko'rinmayapti: sezdirmasdan
   else if(!busy()) showCountdown();
 }
 

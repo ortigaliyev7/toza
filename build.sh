@@ -43,5 +43,18 @@ for f in public/*Worker.min.js public/*Worker.min.wasm public/recorder.min.js pu
 [ -f dist/decoderWorker.min.js ] && [ -f dist/waveWorker.min.js ] || { echo "XATO: ovozli xabar ishchilari (decoderWorker/waveWorker) yo'q"; exit 1; }
 [ -f dist/assets/fonts/tgico.woff ] || { echo "XATO: dist/assets/fonts/tgico.woff yo'q — ikonkalar chiqmaydi"; exit 1; }
 node -e 'const fs=require("fs");const notes=JSON.parse(fs.readFileSync("../toza-changelog.json","utf8"));fs.writeFileSync("dist/toza-version.txt",JSON.stringify({v:process.env.VITE_TOZA_BUILD,notes:notes.slice(0,3)}))'
+# Tezlik: sourcemap'lar foydalanuvchiga kerak emas (56 MB) — olib tashlaymiz; qolgan matn fayllarini oldindan eng kuchli darajada
+# siqib qo'yamiz (.gz va js/css/wasm/json/svg uchun .br yonida), nginx tayyorini beradi: birinchi ochilishda yuklanadigan hajm kamayadi.
+find dist -name '*.map' -delete
+node -e '
+const fs=require("fs"),path=require("path"),zlib=require("zlib");let n=0,a=0,b=0,c=0;
+const walk=(d)=>{for(const f of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,f.name);
+  if(f.isDirectory()){walk(p);continue;}
+  if(!/\.(js|mjs|css|json|wasm|svg|html|webmanifest|xml|txt)$/.test(f.name)||f.name==="toza-version.txt")continue;
+  const buf=fs.readFileSync(p);if(buf.length<1024)continue;
+  const gz=zlib.gzipSync(buf,{level:9,memLevel:9});if(gz.length>=buf.length*0.95)continue;
+  fs.writeFileSync(p+".gz",gz);n++;a+=buf.length;b+=gz.length;
+  if(/\.(js|css|wasm|json|svg)$/.test(f.name)){const br=zlib.brotliCompressSync(buf,{params:{[zlib.constants.BROTLI_PARAM_QUALITY]:11,[zlib.constants.BROTLI_PARAM_SIZE_HINT]:buf.length}});if(br.length<gz.length){fs.writeFileSync(p+".br",br);c+=br.length;}else c+=gz.length;}else c+=gz.length;}};
+walk("dist");console.log("siqildi: "+n+" ta fayl, "+(a/1048576).toFixed(1)+" MB -> gzip "+(b/1048576).toFixed(1)+" MB, brotli bilan "+(c/1048576).toFixed(1)+" MB");'
 rm -rf ../dist && cp -R dist ../dist
 echo "tayyor: dist/ (versiya $VITE_TOZA_BUILD)"
