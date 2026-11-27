@@ -57,6 +57,23 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--in);margin:4px 0 6px}
 .tz-pop .tz-seg button{flex:1;height:38px!important;border-radius:11px!important;background:transparent!important;box-shadow:none!important;color:var(--tx2)!important;font-weight:600!important;padding:0 6px!important}
 .tz-pop .tz-seg button.on{background:var(--btn)!important;color:#fff!important}
+.tz-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;scrollbar-width:none}
+.tz-chips::-webkit-scrollbar{display:none}
+.tz-pop .tz-chips button{flex:none;height:34px!important;border-radius:17px!important;padding:0 12px!important;font-weight:600!important;font-size:13px!important;color:var(--tx2)!important}
+.tz-pop .tz-chips button.on{background:var(--btn)!important;color:#fff!important;box-shadow:none!important}
+.tz-cc-bar{display:flex;align-items:center;gap:6px;margin-top:4px!important}
+.tz-cc-bar .tz-sub{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.tz-pop button.tz-mini{height:32px!important;padding:0 10px!important;font-size:12.5px!important;border-radius:12px!important}
+.tz-cc-list{max-height:52vh;overflow:auto;background:var(--card);border:1px solid var(--cb);border-radius:18px;padding:0 12px!important;margin-top:8px!important;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.tz-cc-row{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tz-cc-av{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--acbg);color:var(--ac);font-weight:700;font-size:16px}
+.tz-cc-ck{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--cb);display:grid;place-items:center;color:transparent;transition:background .15s,border-color .15s;opacity:0}
+.tz-cc.selecting .tz-cc-ck{opacity:1}
+.tz-cc-row.on .tz-cc-ck{background:var(--btn);border-color:transparent;color:#fff;opacity:1}
+.tz-cc-row.on{background:var(--acbg);margin:0 -12px;padding:6px 12px}
+.tz-pop .tz-cc-del{width:calc(100% - 36px);margin-top:10px!important}
+.tz-pop button.tz-danger{background:var(--bd)!important;color:#fff!important}
+.tz-cc-confirm button{width:100%;margin-top:8px}
 `;
 export function ensureStyle() {
   if(document.getElementById('tz-style')) return;

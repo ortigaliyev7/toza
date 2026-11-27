@@ -119,6 +119,8 @@ export function openTozaSettings() {
         check('Bir martalik media', isPaid() ? 'Ko\'rilgach yo\'qoladigan rasm/video zaxiraga yoziladi.' : 'Sharpa obunasi va Toza zaxirasi bilan ishlaydi.', saveOnceOn, setSaveOnce, 'timer'),
         nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce()),
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
+      sec('Vositalar',
+        nav('contacts', 'Kontaktlarni tozalash', 'Uzoq kirmagan, o\'chirilgan akkaunt, chat yo\'q…', () => { close(); import('./contacts').then((m) => m.openContactsCleaner(() => openTozaSettings())); })),
       sec('Qulayliklar',
         nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
         nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),

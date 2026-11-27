@@ -2,6 +2,13 @@
   {
     "date": "2026-11-27",
     "items": [
+      "Kontaktlarni tozalash: uzoq vaqt kirmagan, o'chirilgan akkauntlar, chati yo'q yoki raqamsiz kontaktlarni saralab o'chirish.",
+      "Tez belgilash: bosib turing, keyin barmoqni sudrab ketma-ket belgilang yoki «Hammasini belgilash». O'chirishdan oldin tasdiq so'raladi. Toza sozlamalari → Vositalar."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "Lotin ↔ Kirill doimiy rejim: chatdagi o'zbekcha xabarlarni tanlangan yozuvda ko'rsatish (ruscha va inglizcha o'zgarmaydi).",
       "Yuborishda avtomatik o'girish: yozganingiz o'zi lotin yoki kirillga o'tadi. Sozlash: Toza sozlamalari → Lotin ↔ Kirill."
     ]

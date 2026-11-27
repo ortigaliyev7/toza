@@ -221,3 +221,34 @@ export function toScript(text: string, to: 'lat' | 'cyr'): string {
   if(to === 'lat') return isUzbekCyrillic(text) ? cyrillicToLatin(text) : text;
   return isUzbekLatin(text) ? latinToCyrillic(text) : text;
 }
+
+// ---------------------------------------------------------------- kontaktlarni saralash
+export type ContactInfo = {id: string; name: string; phone?: string; deleted?: boolean; bot?: boolean; status?: {_: string; was_online?: number; expires?: number}; hasChat: boolean};
+export type ContactFilter = 'all' | 'inactiveMonth' | 'inactiveWeek' | 'deleted' | 'noChat' | 'noPhone';
+const DAY = 86400;
+/** Oxirgi ko'ringan vaqt (sekund, taxminiy): saralash uchun. Yashirin/uzoq vaqt — 0. */
+export function lastSeen(c: ContactInfo, now: number): number {
+  const s = c.status;
+  switch(s?._) {
+    case 'userStatusOnline': return now;
+    case 'userStatusOffline': return s.was_online || 0;
+    case 'userStatusRecently': return now - 2 * DAY;
+    case 'userStatusLastWeek': return now - 6 * DAY;
+    case 'userStatusLastMonth': return now - 29 * DAY;
+    default: return 0;                                                 // userStatusEmpty: «uzoq vaqt oldin»
+  }
+}
+/** Kontakt shu toifagami. «Uzoq kirmagan»: o'chirilgan akkaunt ham kiradi. */
+export function matchContact(c: ContactInfo, f: ContactFilter, now: number): boolean {
+  switch(f) {
+    case 'all': return true;
+    case 'deleted': return !!c.deleted;
+    case 'noChat': return !c.hasChat;
+    case 'noPhone': return !c.phone;
+    case 'inactiveWeek': return c.deleted || (c.status?._ === 'userStatusOffline' ? lastSeen(c, now) < now - 7 * DAY : ['userStatusLastMonth', 'userStatusEmpty', undefined].includes(c.status?._));
+    case 'inactiveMonth': return c.deleted || (c.status?._ === 'userStatusOffline' ? lastSeen(c, now) < now - 30 * DAY : c.status?._ === 'userStatusEmpty' || !c.status);
+  }
+}
+export function sortContacts(list: ContactInfo[], by: 'name' | 'seen', now: number): ContactInfo[] {
+  return [...list].sort(by === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => lastSeen(a, now) - lastSeen(b, now) || a.name.localeCompare(b.name));
+}

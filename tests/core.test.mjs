@@ -434,3 +434,26 @@ test('o\'zbekcha aniqlash: rus va ingliz matni o\'zgarmaydi', () => {
   assert.equal(toScript('Men hozir boraman', 'cyr'), 'Мен ҳозир бораман');
   assert.equal(toScript('Good morning', 'cyr'), 'Good morning');
 });
+
+import {matchContact, sortContacts, lastSeen} from '../overlay/src/lib/toza/tools-core.ts';
+test('kontaktlar: toifalar va saralash', () => {
+  const now = 1_000_000_000, D = 86400;
+  const c = (id, extra) => ({id, name: id, hasChat: true, phone: '1', ...extra});
+  const list = [
+    c('a', {status: {_: 'userStatusOnline'}}),
+    c('b', {status: {_: 'userStatusOffline', was_online: now - 40 * D}}),
+    c('c', {status: {_: 'userStatusLastMonth'}}),
+    c('d', {status: {_: 'userStatusEmpty'}, hasChat: false}),
+    c('e', {deleted: true, phone: undefined}),
+    c('f', {status: {_: 'userStatusOffline', was_online: now - 10 * D}})
+  ];
+  const ids = (f) => list.filter((x) => matchContact(x, f, now)).map((x) => x.id).join('');
+  assert.equal(ids('all'), 'abcdef');
+  assert.equal(ids('inactiveMonth'), 'bde');
+  assert.equal(ids('inactiveWeek'), 'bcdef');
+  assert.equal(ids('deleted'), 'e');
+  assert.equal(ids('noChat'), 'd');
+  assert.equal(ids('noPhone'), 'e');
+  assert.equal(sortContacts(list, 'seen', now).map((x) => x.id).join(''), 'debcfa');
+  assert.equal(lastSeen(list[0], now), now);
+});
