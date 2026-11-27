@@ -10,6 +10,7 @@ import {matchChat, matchContact} from './tools-core';
 import type {ChatFilter, ChatInfo, ContactFilter, ContactInfo} from './tools-core';
 import {openedMap, trackSince} from './opened';
 import {loadContacts} from './contacts';
+import {featureOn, FEATURES_EVENT} from './features';
 
 type Sel = {tozaListKeys(): number[]; tozaSelectOnly(keys: number[]): void; tozaDelete(): Promise<void>; cancelSelection(): void; addEventListener(e: 'toggle', cb: (on: boolean) => void): void; removeEventListener(e: 'toggle', cb: (on: boolean) => void): void; isSelecting: boolean};
 
@@ -46,6 +47,7 @@ async function chatInfos(keys: number[], cache: Map<number, ChatInfo | null>): P
 function mount(sel: Sel, plate: HTMLElement, header: HTMLElement, kind: string) {
   const isChats = kind === 'ChatsSelected', isContacts = kind === 'ContactsSelected';
   if(!isChats && !isContacts) return;                                   // mavzular (forum) uchun emas
+  if(!featureOn('selbar')) return;
   ensureStyle();
   const strip = document.createElement('div');
   strip.className = 'tz-selbar';
@@ -113,4 +115,5 @@ export function startSelectionBar() {
     const d = (e as CustomEvent).detail || {};
     try { if(d.selection?.tozaSelectOnly && d.plate && d.header) mount(d.selection, d.plate, d.header, d.kind); } catch{ /* tweb o'zgargan bo'lsa jim */ }
   });
+  window.addEventListener(FEATURES_EVENT, (e: Event) => { const d = (e as CustomEvent).detail; if(d?.k === 'selbar' && !d.on) document.querySelectorAll('.tz-selbar').forEach((el) => el.remove()); });
 }

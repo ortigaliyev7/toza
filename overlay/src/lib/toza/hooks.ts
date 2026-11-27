@@ -6,7 +6,7 @@ import type {Incoming, MediaKind, SyncStatus} from './core';
 import {IdbStore} from './idb';
 import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
 import {injectGhosts} from './ghost';
-import {anyGhost, applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
+import {applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
 import {matchKeyword} from './tools-core';
 import {bindTranslitKeys, startScriptModes} from './translit';
 import {mountQuickBar} from './quickbar';
@@ -338,6 +338,14 @@ function observeBubbles() {
   new MutationObserver((muts) => muts.forEach((mu) => mu.addedNodes.forEach((n) => n.nodeType === 1 && take(n as Element)))).observe(document.body, {childList: true, subtree: true});
 }
 
+let lastOnline = 0;
+async function syncOnline() {
+  await applyFlags();
+  if(getFlags().noOnline || document.hidden || Date.now() - lastOnline < 20000) return;
+  lastOnline = Date.now();
+  try { await (rootScope as any).managers.appUsersManager.updateMyOnlineStatus(false); } catch{ /* tarmoq */ }
+}
+
 /** Hodisa ushlagichlari va davriy yuklashni bir marta o'rnatadi. Arxiv faqat foydalanuvchi YOQQANDAN keyin to'planadi. */
 export function startTozaBackup() {
   if(started) return;
@@ -345,7 +353,6 @@ export function startTozaBackup() {
   const on = (fn: (...a: any[]) => any) => (...a: any[]) => { if(isEnabled()) fn(...a); };
   rootScope.addEventListener('history_append', on(({message}: any) => capture(message)));
   rootScope.addEventListener('history_append', ({message}: any) => { onKeyword(message).catch((): void => undefined); });
-  applyFlags();
   bindTranslitKeys();
   try { startScriptModes(); } catch{ /* lotin/kirill rejimlari muhim emas */ }
   try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
@@ -355,7 +362,11 @@ export function startTozaBackup() {
   startOpenTracking().catch((): void => undefined);
   try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
   try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
-  document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
+  // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.
+  // «Offlayn» o'chiq bo'lsa, darrov «onlayn» bo'lamiz (avval «offlayn» yuborilgan bo'lsa ham qolib ketmasin).
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) syncOnline(); });
+  window.addEventListener('focus', () => syncOnline());
+  syncOnline();
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
   rootScope.addEventListener('history_delete', on(({peerId, msgs}: any) => onDeleted(String(peerId), msgs)));

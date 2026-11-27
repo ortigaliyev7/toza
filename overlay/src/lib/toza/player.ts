@@ -9,6 +9,7 @@ import appMediaPlaybackController from '@components/appMediaPlaybackController';
 import {ensureStyle} from './style';
 import {icon} from './icons';
 import {fmtTime, nextSeek, resumeAt} from './tools-core';
+import {featureOn, FEATURES_EVENT} from './features';
 
 export type PlayerPrefs = {gestures: boolean; seek: 5 | 10 | 15; resume: boolean; wheel: boolean; brightness: number};
 const LS = 'toza_player', LS_POS = 'toza_player_pos';
@@ -155,7 +156,7 @@ function bindGestures(video: HTMLVideoElement, wrap: HTMLElement) {
   const full = () => wrap.classList.contains('ckin__fullscreen');
 
   wrap.addEventListener('touchstart', (e) => {
-    if(!playerPrefs().gestures || e.touches.length !== 1 || (e.target as Element).closest?.('.default__controls, .tz-pmenu, .tz-hud')) { start = null; return; }
+    if(!featureOn('player') || !playerPrefs().gestures || e.touches.length !== 1 || (e.target as Element).closest?.('.default__controls, .tz-pmenu, .tz-hud')) { start = null; return; }
     const p = e.touches[0];
     start = {x: p.clientX, y: p.clientY, t: video.currentTime, vol: getVolume(), br: playerPrefs().brightness, time: Date.now(), mode: ''};
   }, {passive: true});
@@ -193,7 +194,7 @@ function bindGestures(video: HTMLVideoElement, wrap: HTMLElement) {
   });
 
   wrap.addEventListener('wheel', (e) => {
-    if(!playerPrefs().wheel || (e.target as Element).closest?.('.tz-pmenu')) return;
+    if(!featureOn('player') || !playerPrefs().wheel || (e.target as Element).closest?.('.tz-pmenu')) return;
     e.preventDefault();
     const step = e.deltaY < 0 ? 0.05 : -0.05;
     if(e.shiftKey) { const b = setBrightness(video, playerPrefs().brightness + step); hud(wrap, 'sun', `Yorqinlik ${pct(b)}`, (b - 0.3) / 1.3); }
@@ -204,7 +205,7 @@ function bindGestures(video: HTMLVideoElement, wrap: HTMLElement) {
 /** Ko'rish oynasidagi faol video uchun klaviatura (bitta umumiy tinglovchi). */
 let active: {video: HTMLVideoElement; wrap: HTMLElement} | null = null;
 function onKey(e: KeyboardEvent) {
-  if(!active || !active.wrap.isConnected || e.ctrlKey || e.metaKey || e.altKey) return;
+  if(!featureOn('player') || !active || !active.wrap.isConnected || e.ctrlKey || e.metaKey || e.altKey) return;
   const inViewer = !!active.wrap.closest('.media-viewer-whole') || active.wrap.classList.contains('ckin__fullscreen');
   if(!inViewer || (document.activeElement as HTMLElement)?.matches?.('input, textarea, [contenteditable="true"]')) return;
   const {video, wrap} = active;
@@ -218,6 +219,7 @@ function onKey(e: KeyboardEvent) {
 }
 
 function enhance(video: HTMLVideoElement) {
+  if(!featureOn('player')) return;
   const wrap = video.closest<HTMLElement>('.ckin__player');
   if(!wrap) return;
   active = {video, wrap};
@@ -253,4 +255,12 @@ export function startPlayer() {
     if(v instanceof HTMLVideoElement && v.closest('.ckin__player')) enhance(v);
   }, true);
   document.addEventListener('keydown', onKey, true);
+  // o'chirilganda ochiq pleyerdan Toza qo'shimchalarini darrov olib tashlaymiz
+  window.addEventListener(FEATURES_EVENT, (e: Event) => {
+    const d = (e as CustomEvent).detail;
+    if(d?.k !== 'player' || d.on) return;
+    document.querySelectorAll('.tz-pbtn, .tz-hud, .tz-pmenu').forEach((el) => el.remove());
+    document.querySelectorAll<HTMLVideoElement>('.ckin__player video').forEach((v) => { v.style.filter = ''; });
+    active = null;
+  });
 }

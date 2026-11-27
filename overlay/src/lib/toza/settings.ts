@@ -17,6 +17,7 @@ import {FLAGS_EVENT} from './quickbar';
 import {eyeCare, setEyeCare} from './eyecare';
 import {eyeCareActive} from './tools-core';
 import {playerPrefs, setPlayerPrefs} from './player';
+import {featureOn, setFeature} from './features';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
   const el = document.createElement(tag);
@@ -135,6 +136,11 @@ export function openTozaSettings() {
       sec('Ko\'rish',
         nav('eye', 'Ko\'z asrash', eyeSummary(), () => viewEyeCare()),
         nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer())),
+      sec('Qo\'shimchalarni yoqish/o\'chirish',
+        check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
+        check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
+        check('Dumaloq videoda kamera almashtirish', 'Yozayotganda old/orqa kamera tugmasi.', () => featureOn('roundcam'), (v) => setFeature('roundcam', v), 'flip'),
+        h('div', {className: 'tz-hint'}, 'Ko\'rinmas rejim, ko\'z asrash va lotin/kirill yuqoridagi o\'z bo\'limlarida o\'chiriladi.')),
       sec('Qulayliklar',
         nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
         nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),

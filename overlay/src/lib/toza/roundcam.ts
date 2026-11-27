@@ -2,6 +2,7 @@
 // tweb tomoni: patches/0004-toza-round-camera.patch (`toza-round-start` hodisasi, recorder.tozaSwitchCamera).
 import {ensureStyle} from './style';
 import {icon} from './icons';
+import {featureOn, FEATURES_EVENT} from './features';
 
 type Rec = {tozaSwitchCamera(): Promise<'user' | 'environment'>; tozaFacing: 'user' | 'environment'; stream: MediaStream};
 type Panel = {element: HTMLElement; previewVideo: HTMLVideoElement};
@@ -47,6 +48,7 @@ export function startRoundCamera() {
   started = true;
   document.addEventListener('toza-round-start', (e: Event) => {
     const d = (e as CustomEvent).detail || {};
-    if(d.recorder?.tozaSwitchCamera && d.panel?.element) mount(d.recorder, d.panel).catch((): void => undefined);
+    if(featureOn('roundcam') && d.recorder?.tozaSwitchCamera && d.panel?.element) mount(d.recorder, d.panel).catch((): void => undefined);
   });
+  window.addEventListener(FEATURES_EVENT, (e: Event) => { const d = (e as CustomEvent).detail; if(d?.k === 'roundcam' && !d.on) document.querySelectorAll('.tz-flip').forEach((el) => el.remove()); });
 }
