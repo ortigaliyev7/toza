@@ -18,6 +18,7 @@ import {startSelectionBar} from './selbar';
 import {startRoundCamera} from './roundcam';
 import {startHoldRecord} from './holdrec';
 import {startAnim} from './anim';
+import {startMobileNav} from './mobile';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -373,6 +374,7 @@ export function startTozaBackup() {
   try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
   try { startEyeCare(); } catch{ /* ko'z asrash muhim emas */ }     // darrov: ekran bir lahza yorqin bo'lib ketmasin
   try { startAnim(); } catch{ /* animatsiyalar muhim emas */ }
+  try { startMobileNav(); } catch{ /* pastki panel muhim emas */ }
   // Qolganlari chatlar ro'yxati chizilgandan keyin, brauzer bo'sh turganda: ilova tezroq ochiladi
   later(() => {
     try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
