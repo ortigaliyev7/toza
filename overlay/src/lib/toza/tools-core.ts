@@ -252,3 +252,32 @@ export function matchContact(c: ContactInfo, f: ContactFilter, now: number): boo
 export function sortContacts(list: ContactInfo[], by: 'name' | 'seen', now: number): ContactInfo[] {
   return [...list].sort(by === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => lastSeen(a, now) - lastSeen(b, now) || a.name.localeCompare(b.name));
 }
+
+// ---------------------------------------------------------------- pleyer va ko'z asrash
+/** 75 → «1:15», 3725 → «1:02:05». */
+export function fmtTime(s: number): string {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s % 60;
+  const p = (n: number) => String(n).padStart(2, '0');
+  return h ? `${h}:${p(m)}:${p(sec)}` : `${m}:${p(sec)}`;
+}
+/** Vaqtni siljitish (0 va davomiylik orasida). */
+export const nextSeek = (cur: number, dur: number, by: number) => Math.min(Math.max(0, cur + by), Math.max(0, dur - 0.1));
+/** Saqlangan joydan davom ettirish kerakmi: boshida yoki oxirida bo'lsa yo'q. */
+export function resumeAt(saved: number | undefined, dur: number): number | null {
+  if(!saved || !isFinite(dur) || dur < 90) return null;
+  return saved >= 10 && saved <= dur - 15 ? saved : null;
+}
+
+export type EyeCare = {mode: 'off' | 'on' | 'night'; warm: 1 | 2 | 3; dim: 0 | 1 | 2 | 3; from: number; to: number};
+/** Ko'z asrash hozir yoqilganmi (tungi rejimda soat oralig'iga qarab; oraliq yarim tundan o'tishi mumkin). */
+export function eyeCareActive(c: EyeCare, hour: number): boolean {
+  if(c.mode === 'off') return false;
+  if(c.mode === 'on') return true;
+  return c.from <= c.to ? hour >= c.from && hour < c.to : hour >= c.from || hour < c.to;
+}
+/** Filtr qatlamlari: iliq (ko'k nurni kamaytiradi, multiply) va xiralik. */
+export function eyeCareLayers(c: EyeCare): {warm: string; dim: number} {
+  const a = [0, 0.14, 0.24, 0.34][c.warm] || 0.14;
+  return {warm: `rgba(255, 140, 40, ${a})`, dim: [0, 0.12, 0.24, 0.36][c.dim] || 0};
+}
