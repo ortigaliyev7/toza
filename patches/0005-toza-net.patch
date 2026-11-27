@@ -1,0 +1,71 @@
+diff --git a/src/helpers/setWorkerProxy.ts b/src/helpers/setWorkerProxy.ts
+index 64513ad..5f9c441 100644
+--- a/src/helpers/setWorkerProxy.ts
++++ b/src/helpers/setWorkerProxy.ts
+@@ -18,6 +18,9 @@ export function makeWorkerURL(url: string | URL) {
+     getLoadedWorkerFlags().forEach((flag) => {
+       (url as URL).searchParams.set(flag, '1');
+     });
++
++    // * Toza ko'prigi (Toza sozlamalari -> Aloqa): ishchi localStorage'ni o'qiy olmaydi
++    try { if(localStorage.getItem('toza_bridge') === '1') (url as URL).searchParams.set('tzb', '1'); } catch(err) {}
+   }
+ 
+   // exclude useless params
+diff --git a/src/lib/calls/callInstance.ts b/src/lib/calls/callInstance.ts
+index d9feda0..7705481 100644
+--- a/src/lib/calls/callInstance.ts
++++ b/src/lib/calls/callInstance.ts
+@@ -37,6 +37,7 @@ import {black, silence} from '@lib/calls/p2P/fallbackMedia';
+ import P2PConnectionRecovery, {P2PRecoveryTrigger} from '@lib/calls/p2P/connectionRecovery';
+ import P2PCallStats, {P2PCallStatsReport} from '@lib/calls/p2P/callStats';
+ import watchLowBattery from '@lib/calls/p2P/lowBattery';
++import {tozaIceServers} from '@lib/toza/call-net';
+ import {describeNoiseSuppressionStatus, getNoiseSuppressionStatus} from '@lib/calls/noiseSuppression/noiseSuppression';
+ import {
+   ActiveLocalMedia,
+@@ -1483,7 +1484,7 @@ export default class CallInstance extends CallInstanceBase<{
+   ) {
+     const {isOutgoing} = this;
+     const conn = new RTCPeerConnection({
+-      iceServers: buildIceServers(connections, isP2p),
++      iceServers: [...buildIceServers(connections, isP2p), ...tozaIceServers()],
+       iceTransportPolicy: isP2p ? 'all' : 'relay',
+       bundlePolicy: 'max-bundle',
+       rtcpMuxPolicy: 'require',
+diff --git a/src/lib/mtproto/dcConfigurator.ts b/src/lib/mtproto/dcConfigurator.ts
+index 7e8a6db..b5153fb 100644
+--- a/src/lib/mtproto/dcConfigurator.ts
++++ b/src/lib/mtproto/dcConfigurator.ts
+@@ -17,6 +17,7 @@ import {DcId} from '@types';
+ import {getEnvironment} from '@environment/utils';
+ import SocketProxied from '@lib/mtproto/transports/socketProxied';
+ import isValidDcId from '@lib/mtproto/isValidDcId';
++import {tozaNet} from '@lib/toza/net-flags';
+ 
+ export type TransportType = 'websocket' | 'https' | 'http';
+ export type ConnectionType = 'client' | 'download' | 'upload';
+@@ -57,7 +58,9 @@ export function constructTelegramWebSocketUrl(_dcId: DcId, connectionType: Conne
+   const dcId = assertValidDcId(_dcId);
+   const suffix = getTelegramConnectionSuffix(connectionType);
+   const path = connectionType !== 'client' ? 'apiws' + TEST_SUFFIX + (premium ? PREMIUM_SUFFIX : '') : ('apiws' + TEST_SUFFIX);
+-  const chosenServer = `wss://${App.suffix.toLowerCase()}ws${dcId}${suffix}.web.telegram.org/${path}`;
++  const host = `${App.suffix.toLowerCase()}ws${dcId}${suffix}`;
++  // * Toza ko'prigi: ulanish Toza serveri orqali (nginx /tzws/ -> shu host), Telegram domeni to'silgan tarmoqlar uchun
++  const chosenServer = tozaNet.bridge ? `${tozaNet.bridge}/tzws/${host}/${path}` : `wss://${host}.web.telegram.org/${path}`;
+ 
+   return chosenServer;
+ }
+diff --git a/src/lib/uiNotificationsManager.ts b/src/lib/uiNotificationsManager.ts
+index c4e7ccf..a652c28 100644
+--- a/src/lib/uiNotificationsManager.ts
++++ b/src/lib/uiNotificationsManager.ts
+@@ -716,6 +716,8 @@ export class UiNotificationsManager {
+     /** the server's loc_key this notification stands in for, so a click routes the same way */
+     locKey?: string
+   }) {
++    // * Toza: shu akkaunt uchun bildirishnomalar o'chirilgan (Toza sozlamalari -> Akkauntlar)
++    try { if((JSON.parse(localStorage.getItem('toza_acc_mute') || '[]') as number[]).includes(accountNumber)) return; } catch(err) {}
+     const hasMoreThanOneAccount = (await AccountController.getTotalAccounts()) > 1;
+     if((hasMoreThanOneAccount && isOtherTabActive) || isDifferentAccount) {
+       // ' ➜ '

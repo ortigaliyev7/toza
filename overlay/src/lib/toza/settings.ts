@@ -22,6 +22,9 @@ import {featureOn, setFeature} from './features';
 import {animPrefs, previewAnim, setAnimPrefs} from './anim';
 import {profileDesignView} from './design';
 import type {AnimPrefs, AnimSpeed, AnimStyle} from './anim';
+import {accMuted, accounts, bridgeOn, install, installState, probeBoth, setAccMuted, setBridge, setSlow, setSlowAuto, slowAuto, slowOn, switchTo} from './net';
+import {setTurnConf, turnConf, validTurnUrl} from './call-net';
+import {BackupError, backupKey, packBackup, unpackBackup} from './net-core';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
   const el = document.createElement(tag);
@@ -149,6 +152,16 @@ export function openTozaSettings() {
         nav('play', 'Video pleyer', 'Imo-ishoralar, yorqinlik, davom ettirish', () => viewPlayer()),
         nav('spark', 'Animatsiyalar', animSummary(), () => viewAnim()),
         nav('palette', 'Profil dizayni', 'Ism rangi va profil rangi', () => viewDesign())),
+      sec('Aloqa va qo\'ng\'iroqlar',
+        nav('shield', 'Toza ko\'prigi (proksi)', bridgeOn() ? 'Yoqilgan · Telegram Toza serveri orqali' : 'O\'chiq · VPN\'siz ulanish uchun', () => viewNet()),
+        check('Video sifatini o\'zi pasaytirish', 'Aloqa zaiflashsa videongiz o\'lchami va tezligi kamayadi, shunda qotish kamayadi.', () => featureOn('calladapt'), (v) => setFeature('calladapt', v), 'tune'),
+        check('Video qotsa ovozga o\'tish', 'Aloqa juda zaif bo\'lsa yoki video qotib qolsa kamerangiz o\'chadi, qo\'ng\'iroq uzilmaydi. Aloqa tiklansa qaytarishni taklif qiladi.', () => featureOn('callaudio'), (v) => setFeature('callaudio', v), 'phone'),
+        check('Aloqa sifati ko\'rsatkichi', 'Qo\'ng\'iroq oynasida: «Aloqa: Yaxshi · 80 ms».', () => featureOn('callinfo'), (v) => setFeature('callinfo', v), 'signal'),
+        nav('download', 'Sekin internet rejimi', slowOn() ? 'Yoqilgan' : slowAuto() ? 'Internet sekinlashsa o\'zi yoqiladi' : 'O\'chiq', () => viewSlow())),
+      sec('Ilova va akkauntlar',
+        nav('install', 'Ilova sifatida o\'rnatish', ({installed: 'O\'rnatilgan', prompt: 'Telefonda alohida ikonka', ios: 'Safari: Ulashish → Bosh ekranga', frame: 'Brauzerda ochib o\'rnatiladi', manual: 'Telefonda alohida ikonka'} as Record<string, string>)[installState()], () => viewInstall()),
+        nav('users', 'Akkauntlar', 'Tez almashtirish va har biriga bildirishnoma', () => viewAccounts()),
+        nav('save', 'Sozlamalar zaxira nusxasi', 'Faylga saqlash va boshqa qurilmada tiklash', () => viewBackupFile())),
       sec('Qo\'shimchalarni yoqish/o\'chirish',
         check('Pastki panel (telefon)', 'Chatlar · Kontaktlar · Sozlamalar · Profil. «Profil»ni bosib tursangiz — akkauntlar.', () => featureOn('tabbar'), (v) => setFeature('tabbar', v), 'contact'),
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
@@ -321,6 +334,96 @@ export function openTozaSettings() {
       row(btn('Kirillga', () => conv(latinToCyrillic), true), btn('Lotinga', () => conv(cyrillicToLatin)),
         btn('Nusxalash', async(b) => { await navigator.clipboard?.writeText(ta.value); b.textContent = 'Nusxalandi'; setTimeout(() => (b.textContent = 'Nusxalash'), 1500); })),
       row(btn('Yozish maydonidagi matnni o\'girish', () => { msg.replaceChildren(note(convertComposer() ? 'O\'girildi.' : 'Avval chatni oching va matn yozing.', '')); })), msg);
+  }
+
+  function viewNet() {
+    const res = h('div', {className: 'tz-hint'});
+    const t = turnConf();
+    const url = h('input', {placeholder: 'turns:server.uz:443?transport=tcp', value: t.url, style: 'width:100%;box-sizing:border-box;margin:4px 0;'}) as HTMLInputElement;
+    const user = h('input', {placeholder: 'Login', value: t.user, style: 'width:100%;box-sizing:border-box;margin:4px 0;'}) as HTMLInputElement;
+    const pass = h('input', {placeholder: 'Parol', type: 'password', value: t.pass, style: 'width:100%;box-sizing:border-box;margin:4px 0;'}) as HTMLInputElement;
+    const msg = h('div');
+    const ms = (v: number) => v < 0 ? 'ulanib bo\'lmadi' : `${v} ms`;
+    sub('Toza ko\'prigi',
+      note('Telegram to\'silgan yoki sekin ishlaydigan tarmoqda Toza Telegram\'ga o\'z serveri orqali ulanadi: VPN kerak emas. Xabarlar shifrlangan holda o\'tadi, server ularni o\'qiy olmaydi.'),
+      h('div', {className: 'tz-sec'},
+        check('Toza ko\'prigi orqali ulanish', 'Yoqilganda sahifa qayta yuklanadi.', bridgeOn, (v) => setBridge(v), 'shield'),
+        row(btn('Aloqani tekshirish', async() => { res.textContent = 'Tekshirilmoqda…'; const r = await probeBoth(); res.textContent = `To'g'ridan: ${ms(r.direct)} · Toza ko'prigi: ${ms(r.bridge)}` + (r.direct < 0 && r.bridge >= 0 ? '. Ko\'prikni yoqing.' : ''); })), res),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Qo\'ng\'iroqlar haqida'),
+        h('div', {className: 'tz-hint'}, 'Ko\'prik xabarlar, rasm va fayllar uchun. Qo\'ng\'iroq ovozi va videosi Telegram\'ning qo\'ng\'iroq serverlari orqali to\'g\'ridan boradi. Suhbatdosh Rossiyada oddiy Telegram\'dan foydalansa, uning tomonidagi cheklovni hech qaysi dastur tuzata olmaydi: «Video sifatini o\'zi pasaytirish» va «Video qotsa ovozga o\'tish» qotishni kamaytiradi. Suhbatdosh ham Toza\'dan foydalansa, yaxshiroq bo\'ladi.')),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Kengaytirilgan: o\'z qo\'ng\'iroq serveringiz (TURN)'),
+        h('div', {className: 'tz-hint'}, 'Chet elda o\'z TURN serveringiz bo\'lsa, qo\'ng\'iroq Telegram serverlariga qo\'shimcha ravishda u orqali ham ulanishi mumkin. Bilmasangiz, bo\'sh qoldiring.'),
+        url, user, pass,
+        row(btn('Saqlash', () => {
+          if(url.value.trim() && !validTurnUrl(url.value)) { msg.replaceChildren(note('Manzil turn: yoki turns: bilan boshlanishi kerak.', '#d33')); return; }
+          setTurnConf({url: url.value.trim(), user: user.value.trim(), pass: pass.value});
+          msg.replaceChildren(note(url.value.trim() ? 'Saqlandi: keyingi qo\'ng\'iroqdan ishlaydi.' : 'O\'chirildi.', '#2a9d4b'));
+        }, true)), msg));
+  }
+
+  function viewSlow() {
+    sub('Sekin internet rejimi',
+      note('Rasm, video va fayllar o\'zi yuklanmaydi (bosganda yuklanadi), stiker va animatsiyalar to\'xtaydi. Chatlar tezroq ochiladi, internet kam sarflanadi. O\'chirganda oldingi sozlamalaringiz qaytadi.'),
+      h('div', {className: 'tz-sec'},
+        check('Sekin internet rejimi', '', slowOn, (v) => setSlow(v), 'download'),
+        check('Internet sekinlashsa o\'zi yoqish', 'Telefon «internet sekin» yoki «trafikni tejash» desa yoqiladi, tezlashsa o\'zi o\'chadi.', slowAuto, setSlowAuto, 'signal')));
+  }
+
+  function viewInstall() {
+    const st = installState();
+    const box = h('div', {className: 'tz-sec'});
+    if(st === 'installed') box.append(note('Toza ilova sifatida o\'rnatilgan.', '#2a9d4b'));
+    else if(st === 'prompt') box.append(note('Telefon yoki kompyuterda alohida ikonka bilan, brauzer panelisiz ochiladi. Bildirishnomalar ham keladi.'), row(btn('O\'rnatish', async(b) => { await install(); b.textContent = installState() === 'installed' ? 'O\'rnatildi' : 'O\'rnatish'; }, true)));
+    else if(st === 'ios') box.append(note('iPhone/iPad: Safari\'da pastdagi «Ulashish» tugmasi → «Bosh ekranga qo\'shish» → «Qo\'shish». Shundan keyin Toza alohida ilova bo\'lib ochiladi.'));
+    else if(st === 'frame') box.append(note('Hozir Toza Sharpa ichida ochilgan. O\'rnatish uchun Toza manzilini Chrome yoki Safari\'da oching va shu yerga qayting.'));
+    else box.append(note('Brauzer menyusidan (⋮) «Ilovani o\'rnatish» yoki «Bosh ekranga qo\'shish»ni tanlang.'));
+    sub('Ilova sifatida o\'rnatish', box);
+  }
+
+  async function viewAccounts() {
+    const list = h('div', {className: 'tz-sec'}, 'Yuklanmoqda…');
+    sub('Akkauntlar', list,
+      h('div', {className: 'tz-sec'}, check('Alt + 1…4 bilan almashtirish', 'Kompyuterda: Alt+1 birinchi akkaunt, Alt+2 ikkinchi va hokazo.', () => featureOn('acckeys'), (v) => setFeature('acckeys', v), 'abc')),
+      h('div', {className: 'tz-hint'}, 'Bildirishnomani o\'chirsangiz, o\'sha akkauntdan Toza ochiq paytda xabar chiqmaydi. Akkaunt qo\'shish: chap menyu yoki «Profil»ni bosib turing.'));
+    try {
+      const accs = await accounts();
+      list.replaceChildren();
+      for(const a of accs) {
+        list.append(check(a.name + (a.cur ? ' (hozirgi)' : ''), 'Bildirishnomalar', () => !accMuted(a.n), (v) => setAccMuted(a.n, !v), 'bell'));
+        if(!a.cur) list.append(row(btn(`${a.name}ga o'tish`, () => { close(); switchTo(a.n); }, true)));
+      }
+    } catch{ list.replaceChildren(note('Akkauntlarni olib bo\'lmadi.', '#d33')); }
+  }
+
+  function viewBackupFile() {
+    const pass = h('input', {type: 'password', placeholder: 'Parol (ixtiyoriy, tavsiya etiladi)', style: 'width:100%;box-sizing:border-box;margin:4px 0;'}) as HTMLInputElement;
+    const msg = h('div');
+    const file = h('input', {type: 'file', accept: '.json,application/json', style: 'display:none'}) as HTMLInputElement;
+    let pending = '';
+    const restore = async(raw: string) => {
+      try {
+        const keys = await unpackBackup(raw, pass.value);
+        for(const k of Object.keys(localStorage)) if(backupKey(k)) localStorage.removeItem(k);
+        for(const [k, v] of Object.entries(keys)) localStorage.setItem(k, v);
+        msg.replaceChildren(note(`Tiklandi: ${Object.keys(keys).length} ta sozlama. Sahifa qayta yuklanadi…`, '#2a9d4b'));
+        setTimeout(() => location.reload(), 1200);
+      } catch(e: any) {
+        if(e instanceof BackupError && e.message === 'pass') { pending = raw; msg.replaceChildren(note(pass.value ? 'Parol noto\'g\'ri.' : 'Bu fayl parol bilan saqlangan: parolni yozib, «Fayldan tiklash»ni yana bosing.', '#d33')); } else msg.replaceChildren(note('Bu Toza zaxira fayli emas.', '#d33'));
+      }
+    };
+    file.onchange = async() => { const f = file.files?.[0]; file.value = ''; if(f) await restore(await f.text()); };
+    sub('Sozlamalar zaxira nusxasi',
+      note('Toza sozlamalari, shablonlar, maxfiy chatlar ro\'yxati, kalit so\'zlar va boshqalar bitta faylga saqlanadi. Boshqa qurilmada shu fayldan tiklang. Telegram parolingiz, sessiya va zaxira kodi faylga kirmaydi.'),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Parol'), pass, h('div', {className: 'tz-hint'}, 'Parol bilan fayl shifrlanadi: fayl begona qo\'lga tushsa ham ochilmaydi. Parolni unutsangiz fayl tiklanmaydi.')),
+      row(btn('Faylga saqlash', async() => {
+        const keys: Record<string, string> = {};
+        for(const k of Object.keys(localStorage)) { const v = localStorage.getItem(k); if(v !== null) keys[k] = v; }
+        const f = await packBackup(keys, pass.value);
+        const a = h('a', {href: URL.createObjectURL(new Blob([JSON.stringify(f)], {type: 'application/json'})), download: `toza-sozlamalar-${new Date().toISOString().slice(0, 10)}.json`});
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 20000);
+        msg.replaceChildren(note(`Saqlandi${pass.value ? ' (parol bilan)' : ''}.`, '#2a9d4b'));
+      }, true), btn('Fayldan tiklash', () => { if(pending && pass.value) { const r = pending; pending = ''; return restore(r); } file.click(); })), file, msg);
   }
 
   main();

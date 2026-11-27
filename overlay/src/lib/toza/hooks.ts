@@ -19,6 +19,8 @@ import {startRoundCamera} from './roundcam';
 import {startHoldRecord} from './holdrec';
 import {startAnim} from './anim';
 import {startMobileNav} from './mobile';
+import {startCallBoost} from './calls';
+import {startNet} from './net';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -396,6 +398,8 @@ export function startTozaBackup() {
     try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
     try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
     try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+    try { startCallBoost(); } catch{ /* qo'ng'iroq yordamchilari muhim emas */ }
+    try { startNet(); } catch{ /* aloqa yordamchilari muhim emas */ }
     import('./biz').then((m) => m.startBiz()).catch((): void => undefined);     // Sharpa (Business) orqali Toza yopiq paytda ushlanganlar
   });
   // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.
