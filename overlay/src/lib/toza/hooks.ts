@@ -15,6 +15,7 @@ import {startEyeCare} from './eyecare';
 import {startPlayer} from './player';
 import {startOpenTracking} from './opened';
 import {startSelectionBar} from './selbar';
+import {startRoundCamera} from './roundcam';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -353,6 +354,7 @@ export function startTozaBackup() {
   try { startPlayer(); } catch{ /* pleyer qo'shimchalari muhim emas */ }
   startOpenTracking().catch((): void => undefined);
   try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
+  try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
   document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
