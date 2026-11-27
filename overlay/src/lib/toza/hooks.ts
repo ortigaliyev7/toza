@@ -5,7 +5,7 @@ import {Archive, docKind, MEDIA_LABEL, MEDIA_MAX_BYTES, Sync, VOICE_MAX_BYTES, i
 import type {Incoming, MediaKind, SyncStatus} from './core';
 import {IdbStore} from './idb';
 import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts';
-import {injectGhosts} from './ghost';
+import {clearGhosts, injectEdits, injectGhosts} from './ghost';
 import {applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
 import {matchKeyword} from './tools-core';
 import {bindTranslitKeys, startScriptModes} from './translit';
@@ -87,10 +87,14 @@ export function setChatEnabled(peerId: string | number, on: boolean) {
 }
 
 // ---- Obuna bor-yo'qligi (serverdan): fayllar (ovoz, rasm, video, hujjat...) faqat obunada
-let paid = false;
+// Obuna holati sahifa ochilganda darrov ma'lum bo'lsin (serverdan javob kelguncha oldingi qiymat): o'chirilgan/tahrirlangan xabarlar bir lahza yo'qolib-chiqmasin
+let paid = (() => { try { return localStorage.getItem('toza_paid') === '1'; } catch{ return false; } })();
 export const isPaid = () => paid;
 export async function refreshPaid() {
+  const was = paid;
   try { const sy = await ensureSync(); paid = !!(sy && (await sy.status()).paid); } catch{ /* tarmoq yo'q: oldingi qiymat qoladi */ }
+  try { localStorage.setItem('toza_paid', paid ? '1' : '0'); } catch{ /* xotira yopiq */ }
+  if(was !== paid) { scheduleGhosts(100); updateBadge(); }
   return paid;
 }
 
@@ -200,6 +204,7 @@ async function capture(m: any, announce = false) {
   const before = announce && canAlert() && !inc.out ? (await store.get(keyOf(inc.peerId, inc.mid)))?.text : undefined;
   let st: string | void = undefined;
   if(inc.text || inc.kind) st = await archive.capture(inc).catch(() => undefined);
+  if(st === 'edited') scheduleGhosts(300);                                    // xabar ostidagi tahrir tarixi yangilansin
   if(st === 'edited' && before !== undefined && before !== inc.text) peerTitle(inc.peerId).then((who) => pushAlert({kind: 'edited', who, text: inc.text, old: before}));
   if(isEnabled()) captureMedia(m, inc);
 }
@@ -256,8 +261,10 @@ let ghostTimer: number | undefined;
 function scheduleGhosts(delay = 500) {
   clearTimeout(ghostTimer);
   ghostTimer = window.setTimeout(() => {
-    if(!isEnabled()) return;
-    injectGhosts({records: () => store.all(), voiceOf: (p, m) => archive.voiceOf(p, m), mediaOf: (p, m) => archive.mediaOf(p, m), enabled: chatEnabled});
+    // o'chirilgan va tahrirlangan xabarlarni chatda ko'rsatish — Toza obunasi (pullik) imkoniyati
+    if(!isEnabled() || !paid) { clearGhosts(); return; }
+    const deps = {records: () => store.all(), voiceOf: (p: string, m: number) => archive.voiceOf(p, m), mediaOf: (p: string, m: number) => archive.mediaOf(p, m), enabled: chatEnabled};
+    injectGhosts(deps).then(() => injectEdits(deps));
   }, delay);
 }
 
@@ -266,7 +273,7 @@ let currentPeer = '';
 let badgeEl: HTMLElement | null = null;
 async function updateBadge() {
   try {
-    const n = isEnabled() && currentPeer && chatEnabled(currentPeer) ? (await store.all()).filter((m) => m.peerId === currentPeer && m.deleted && !isBlobKey(m.k)).length : 0;
+    const n = isEnabled() && paid && currentPeer && chatEnabled(currentPeer) ? (await store.all()).filter((m) => m.peerId === currentPeer && m.deleted && !isBlobKey(m.k)).length : 0;
     if(!n) { badgeEl?.remove(); badgeEl = null; return; }
     if(!badgeEl) {
       badgeEl = document.createElement('button');

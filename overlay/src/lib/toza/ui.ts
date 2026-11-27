@@ -154,7 +154,7 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
       toolsRow(),
       alertRow(),
       h('b', {}, 'Sharpa obunasi bilan bog\'lash'),
-      note('Matn bepul saqlanadi. Fayllar (rasm, video, ovoz, GIF, musiqa, hujjat, stiker) faqat Sharpa obunasi bilan saqlanadi: Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
+      note('Matn bepul saqlanadi. Obuna bilan: o\'chirilgan va tahrirlangan xabarlar chatning o\'zida ko\'rinadi, fayllar (rasm, video, ovoz, GIF, musiqa, hujjat, stiker) ham saqlanadi. Sharpa botida /zaxira yozing va kodni kiriting.' + (isPaid() ? ' Obuna ulangan.' : '')),
       row(linkIn, btn('Bog\'lash', async() => { msg.replaceChildren(); try { await linkSharpa(linkIn.value); msg.append(note('Bog\'landi.', '#2a9d4b')); } catch(e) { msg.append(note(errText(e), '#d33')); } await refresh(); })),
       msg,
       gapNote(),
@@ -195,6 +195,10 @@ export function openTozaBackup(jump?: {peerId: string}, view?: 'chats' | 'histor
   }
 
   async function showDeleted(list: HTMLElement) {
+    if(!isPaid()) {
+      list.replaceChildren(h('b', {}, 'O\'chirilgan xabarlar'), note('O\'chirilgan va tahrirlangan xabarlarni ko\'rish Sharpa obunasi bilan ishlaydi. Xabarlar hozir ham saqlanyapti: obunani ulasangiz, oldingilari ham ko\'rinadi. Sharpa botida /zaxira yozing va kodni pastda kiriting.'));
+      return;
+    }
     const items = await archive.deletedMessages();
     list.replaceChildren(h('b', {}, `O'chirilgan xabarlar (${items.length})`));
     if(!items.length) { list.append(note('Hozircha yo\'q. Boshqalar xabarni o\'chirsa, shu yerda ko\'rinadi.')); return; }

@@ -77,3 +77,55 @@ export async function injectGhosts(deps: GhostDeps, root: ParentNode = document)
   } catch{ /* ko'lanka muhim emas: chat buzilmasin */ }
   return placed;
 }
+
+export const EDITS_ATTR = 'data-toza-edits';
+
+/** Obuna tugaganda yoki zaxira o'chirilganda: chatga qo'yilgan ko'lanka va tahrir tarixlarini olib tashlaydi. */
+export function clearGhosts(root: ParentNode = document) {
+  root.querySelectorAll(`[${GHOST_ATTR}], [${EDITS_ATTR}]`).forEach((el) => {
+    el.querySelectorAll('audio,video,img,a[download]').forEach((m: any) => { try { URL.revokeObjectURL(m.src || m.href); } catch{ /* yo'q */ } });
+    el.remove();
+  });
+}
+
+/** Tahrirlangan xabarlar ostida: «✎ Tahrirlangan · N ta oldingi versiya» — bosilsa oldingi matnlar ochiladi (saqlangan nusxadan). */
+export async function injectEdits(deps: GhostDeps, root: ParentNode = document): Promise<number> {
+  let n = 0;
+  try {
+    const containers = Array.from(root.querySelectorAll('.bubbles-inner'));
+    if(!containers.length) return 0;
+    const all = await deps.records();
+    for(const c of containers) {
+      const peer = containerPeer(c);
+      if(!peer || !deps.enabled(peer)) continue;
+      const edited = new Map(all.filter((m) => m.peerId === peer && m.edits?.length && !m.k.startsWith('v:') && !m.k.startsWith('m:')).map((m) => [String(m.mid), m]));
+      if(!edited.size) continue;
+      for(const b of bubbleList(c)) {
+        const rec = edited.get(b.dataset.mid!);
+        const host = b.querySelector<HTMLElement>('.bubble-content');
+        if(!rec || !host) continue;
+        const old = host.querySelector<HTMLElement>(`:scope > [${EDITS_ATTR}]`);
+        if(old?.dataset.n === String(rec.edits!.length)) continue;
+        old?.remove();
+        const d = document.createElement('details');
+        d.setAttribute(EDITS_ATTR, rec.k); d.dataset.n = String(rec.edits!.length);
+        d.className = 'tz-edits';
+        const sm = document.createElement('summary');
+        sm.textContent = `✎ Tahrirlangan · ${rec.edits!.length} ta oldingi versiya`;
+        d.append(sm);
+        for(const e of [...rec.edits!].reverse()) {
+          const row = document.createElement('div'); row.className = 'tz-edits-row';
+          const t = document.createElement('div'); t.className = 'tz-edits-time'; t.textContent = fmtTime(e.t);
+          const x = document.createElement('div'); x.className = 'tz-edits-text'; x.dir = 'auto'; x.textContent = e.text || '(matnsiz)';
+          row.append(t, x); d.append(row);
+        }
+        // bosish tweb'ning xabar menyusini ochmasin
+        d.addEventListener('click', (ev) => ev.stopPropagation());
+        d.addEventListener('mousedown', (ev) => ev.stopPropagation());
+        host.append(d);
+        n++;
+      }
+    }
+  } catch{ /* tahrir tarixi muhim emas: chat buzilmasin */ }
+  return n;
+}
