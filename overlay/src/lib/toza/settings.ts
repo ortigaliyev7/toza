@@ -139,6 +139,7 @@ export function openTozaSettings() {
       sec('Qo\'shimchalarni yoqish/o\'chirish',
         check('Video pleyer qo\'shimchalari', 'O\'chirsangiz Telegram\'ning oddiy pleyeri qoladi.', () => featureOn('player'), (v) => setFeature('player', v), 'play'),
         check('Toifa bo\'yicha belgilash', 'Bosib turib belgilaganda chiqadigan «O\'qilmagan», «Kanallar»… qatori.', () => featureOn('selbar'), (v) => setFeature('selbar', v), 'check'),
+        check('Bosib turib yozish', 'Telefonda: mikrofonni bosib turing — yoziladi, qo\'yib yuboring — yuboriladi, chapga suring — bekor, tepaga — qulflash. Qisqa bosish: ovoz ↔ dumaloq video.', () => featureOn('holdrec'), (v) => setFeature('holdrec', v), 'mic'),
         check('Dumaloq videoda kamera almashtirish', 'Yozayotganda old/orqa kamera tugmasi.', () => featureOn('roundcam'), (v) => setFeature('roundcam', v), 'flip'),
         h('div', {className: 'tz-hint'}, 'Ko\'rinmas rejim, ko\'z asrash va lotin/kirill yuqoridagi o\'z bo\'limlarida o\'chiriladi.')),
       sec('Qulayliklar',
