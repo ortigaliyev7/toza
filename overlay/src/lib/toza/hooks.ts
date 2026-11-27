@@ -340,6 +340,12 @@ function observeBubbles() {
   new MutationObserver((muts) => muts.forEach((mu) => mu.addedNodes.forEach((n) => n.nodeType === 1 && take(n as Element)))).observe(document.body, {childList: true, subtree: true});
 }
 
+/** Ilova ochilishini sekinlashtirmaslik uchun: brauzer bo'sh qolganda (eng kechi 3 soniyada) bajaradi. */
+const later = (fn: () => void) => {
+  const ric = (window as any).requestIdleCallback as ((cb: () => void, o: {timeout: number}) => number) | undefined;
+  ric ? ric(fn, {timeout: 3000}) : setTimeout(fn, 1200);
+};
+
 let lastOnline = 0;
 async function syncOnline() {
   await applyFlags();
@@ -358,14 +364,17 @@ export function startTozaBackup() {
   bindTranslitKeys();
   try { startScriptModes(); } catch{ /* lotin/kirill rejimlari muhim emas */ }
   try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
-  try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
-  try { startEyeCare(); } catch{ /* ko'z asrash muhim emas */ }
-  try { startPlayer(); } catch{ /* pleyer qo'shimchalari muhim emas */ }
-  startOpenTracking().catch((): void => undefined);
-  try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
-  try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
-  try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+  try { startEyeCare(); } catch{ /* ko'z asrash muhim emas */ }     // darrov: ekran bir lahza yorqin bo'lib ketmasin
   try { startAnim(); } catch{ /* animatsiyalar muhim emas */ }
+  // Qolganlari chatlar ro'yxati chizilgandan keyin, brauzer bo'sh turganda: ilova tezroq ochiladi
+  later(() => {
+    try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
+    try { startPlayer(); } catch{ /* pleyer qo'shimchalari muhim emas */ }
+    startOpenTracking().catch((): void => undefined);
+    try { startSelectionBar(); } catch{ /* tezkor belgilash muhim emas */ }
+    try { startRoundCamera(); } catch{ /* kamera almashtirish muhim emas */ }
+    try { startHoldRecord(); } catch{ /* bosib turib yozish muhim emas */ }
+  });
   // ishchi qayta ishga tushgan bo'lishi mumkin: har safar sahifaga qaytganda holatni qayta yuboramiz.
   // «Offlayn» o'chiq bo'lsa, darrov «onlayn» bo'lamiz (avval «offlayn» yuborilgan bo'lsa ham qolib ketmasin).
   document.addEventListener('visibilitychange', () => { if(!document.hidden) syncOnline(); });
@@ -381,12 +390,14 @@ export function startTozaBackup() {
   setAlertOpener(() => { import('./ui').then((m) => m.openTozaBackup()); });
   observeBubbles();
   rootScope.addEventListener('logging_out', () => { reportStatus(false); });
-  reportStatus(true);
+  later(() => reportStatus(true));
   // Sharpa «Zaxirani yoqish» bosilganda (?zaxira=1): kirgandan keyin zaxira oynasini o'zi ochamiz
   if(!isEnabled() && /[?&]zaxira=1/.test(location.search)) setTimeout(() => { import('./ui').then((m) => m.openTozaBackup()); }, 1200);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) { lastStatus = ''; reportStatus(true); } });
-  if(isEnabled()) ensureSync().then(() => refreshPaid());
-  try { navigator.storage?.persist?.(); } catch{ /* ruxsat yo'q */ }          // brauzer joy tanqisligida Toza ma'lumotini (zaxira kaliti) o'chirib yubormasin
+  later(() => {
+    if(isEnabled()) ensureSync().then(() => refreshPaid());
+    try { navigator.storage?.persist?.(); } catch{ /* ruxsat yo'q */ }
+  });          // brauzer joy tanqisligida Toza ma'lumotini (zaxira kaliti) o'chirib yubormasin
   window.setInterval(() => { if(isEnabled()) refreshPaid(); }, 10 * 60 * 1000);
   timer = window.setInterval(() => { if(isEnabled()) flushNow().catch(() => undefined); }, FLUSH_MS);
   document.addEventListener('visibilitychange', () => { if(document.hidden && isEnabled()) flushNow().catch(() => undefined); });

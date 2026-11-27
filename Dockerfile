@@ -18,4 +18,5 @@ ENV PORT=8080
 # Toza qaysi saytlar ichida ochilishi mumkin (bo'sh joy bilan). Railway Variables'da FRAME_ANCESTORS bilan almashtiriladi.
 ENV FRAME_ANCESTORS="'self' https://sharpa-production.up.railway.app https://*.telegram.org https://web.telegram.org"
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY toza-br.conf /etc/nginx/toza-br.conf
 COPY --from=build /w/dist /usr/share/nginx/html

@@ -2,6 +2,13 @@
   {
     "date": "2026-11-27",
     "items": [
+      "Toza tezroq ochiladi: fayllar ancha kichik hajmda yuklanadi, qo'shimcha funksiyalar esa chatlar ro'yxati chiqqandan keyin ishga tushadi.",
+      "Yangi versiya chiqqanda uning fayllari fonda oldindan yuklab qo'yiladi, shuning uchun «Yangilash»dan keyin ilova darrov ochiladi."
+    ]
+  },
+  {
+    "date": "2026-11-27",
+    "items": [
       "Yangi: animatsiyalar. Kelgan xabar chatda jonlanib chiqadi, tugmalar va chatlar bosilganda yengil effekt beradi, Toza oynalari silliq ochiladi.",
       "Toza sozlamalari → Ko'rish → Animatsiyalar: uslub (Yumshoq, Sakrash, Surilish), tezlik va qayerda ishlashini tanlang yoki butunlay o'chiring."
     ]

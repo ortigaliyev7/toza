@@ -3,6 +3,10 @@ server {
     root /usr/share/nginx/html;
     index index.html;
     gzip on;
+    gzip_static on;          # build.sh oldindan siqib qo'ygan .gz fayllar (eng kuchli daraja) bor bo'lsa, o'shani beradi
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_vary on;
     gzip_types text/css application/javascript application/json image/svg+xml application/wasm;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy no-referrer always;
@@ -11,6 +15,22 @@ server {
     location = /sw.js { add_header Cache-Control "no-cache"; try_files $uri =404; }
     # Faqat Sharpa Mini App ichida (va Telegram'ning o'zida) ochilishi mumkin: boshqa saytlar kirish oynasini yashirincha joylashtira olmaydi (clickjacking).
     location = /index.html { add_header Cache-Control "no-cache"; add_header Content-Security-Policy "frame-ancestors ${FRAME_ANCESTORS}" always; add_header X-Content-Type-Options nosniff always; }
-    location ~* \.(js|css|woff2?|wasm|svg|png|jpg|webp|mp3|ogg)$ { add_header Cache-Control "public, max-age=31536000, immutable"; try_files $uri =404; }
+    # Brotli: build.sh har bir matn fayli yoniga .br (eng kuchli daraja) qo'yadi. Brauzer br qabul qilsa va fayl bo'lsa, o'shani beramiz
+    # (gzip'dan ~20% kichik). nginx'da brotli moduli shart emas: tayyor faylni to'g'ri sarlavhalar bilan yuboramiz.
+    location ~* \.(js|css|wasm|json|svg)$ {
+        set $tz_br "";
+        if ($http_accept_encoding ~* "\bbr\b") { set $tz_br "a"; }
+        if (-f $request_filename.br) { set $tz_br "${tz_br}b"; }
+        if ($tz_br = "ab") { rewrite ^(.*)$ $1.br last; }
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+        try_files $uri =404;
+    }
+    location ~ \.js\.br$   { types {} default_type application/javascript; include /etc/nginx/toza-br.conf; }
+    location ~ \.css\.br$  { types {} default_type text/css; include /etc/nginx/toza-br.conf; }
+    location ~ \.wasm\.br$ { types {} default_type application/wasm; include /etc/nginx/toza-br.conf; }
+    location ~ \.json\.br$ { types {} default_type application/json; include /etc/nginx/toza-br.conf; }
+    location ~ \.svg\.br$  { types {} default_type image/svg+xml; include /etc/nginx/toza-br.conf; }
+    location ~* \.(woff2?|png|jpg|webp|mp3|ogg)$ { add_header Cache-Control "public, max-age=31536000, immutable"; try_files $uri =404; }
     location / { try_files $uri $uri/ /index.html; }
 }
