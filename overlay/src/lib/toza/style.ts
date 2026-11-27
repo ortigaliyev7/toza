@@ -84,6 +84,10 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-selbar-row button.on{background:var(--primary-color);border-color:transparent;color:#fff}
 .tz-selbar-row button.busy{opacity:.55}
 .tz-selbar .tz-selbar-del{flex:none;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;font:600 13.5px/1 var(--font-regular,system-ui,sans-serif);cursor:pointer;background:var(--danger-color,#e53935);border-color:transparent;color:#fff}
+.tz-flip{position:absolute;left:50%;bottom:10%;transform:translateX(-50%);z-index:3;width:48px;height:48px;border-radius:50%;border:0;display:grid;place-items:center;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:auto}
+.tz-flip:disabled{opacity:.5}
+.video-recording-stage--playing .tz-flip{display:none}
+.tz-backcam .video-recording-preview{transform:none!important}
 .tz-hud{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:16px;background:rgba(0,0,0,.62);color:#fff;font:500 15px/1.2 var(--font-regular,system-ui,sans-serif);opacity:0;pointer-events:none;transition:opacity .18s;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tz-hud.on{opacity:1}
 .tz-hud:has(button).on{pointer-events:auto}

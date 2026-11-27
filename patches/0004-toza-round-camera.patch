@@ -1,0 +1,74 @@
+diff --git a/src/components/chat/recording/chatRecording.ts b/src/components/chat/recording/chatRecording.ts
+index c034fb4..7e219dc 100644
+--- a/src/components/chat/recording/chatRecording.ts
++++ b/src/components/chat/recording/chatRecording.ts
+@@ -1206,6 +1206,8 @@ export default class ChatRecording {
+     // once the first frame is actually painted — revealing immediately would
+     // fade in a black circle while the camera spins up.
+     this.videoRecordingPanel?.startLivePreview(this.videoRecorder.stream);
++    // * Toza: the camera switch is laid over the round preview from outside
++    document.dispatchEvent(new CustomEvent('toza-round-start', {detail: {recorder: this.videoRecorder, panel: this.videoRecordingPanel}}));
+ 
+     // Live waveform: tap the captured audio track through a throwaway
+     // AudioContext (MediaRecorder gives us no PCM). Mirror the voice flow —
+diff --git a/src/helpers/videoRecorder/nativeVideoRecorder.ts b/src/helpers/videoRecorder/nativeVideoRecorder.ts
+index 8b2be75..e8f3efd 100644
+--- a/src/helpers/videoRecorder/nativeVideoRecorder.ts
++++ b/src/helpers/videoRecorder/nativeVideoRecorder.ts
+@@ -27,6 +27,7 @@
+ 
+ import {IS_APPLE_MOBILE, IS_SAFARI} from '@environment/userAgent';
+ import acquireStream, {StreamAcquisition} from '@lib/calls/helpers/acquireStream';
++import getStream from '@lib/calls/helpers/getStream';
+ 
+ export interface NativeVideoRecorderConfig {
+   // Square output dimensions written to the encoded file. 400 = the larger of
+@@ -302,6 +303,48 @@ export default class NativeVideoRecorder {
+     this.onstart();
+   }
+ 
++  /** Toza: which camera records now (front `user`, back `environment`) */
++  public get tozaFacing() {
++    return this.config.facingMode;
++  }
++
++  /**
++   * Toza: turns to the other camera while recording. Only the video track of `stream` is swapped,
++   * so the canvas pipeline, the microphone and the MediaRecorder go on as they were.
++   */
++  public async tozaSwitchCamera(): Promise<'user' | 'environment'> {
++    if(!this.stream) return this.config.facingMode;
++    const next = this.config.facingMode === 'user' ? 'environment' : 'user';
++    const video: MediaTrackConstraints = {
++      width: {ideal: 720},
++      height: {ideal: 720},
++      frameRate: {ideal: this.config.frameRate}
++    };
++    let fresh: MediaStream;
++    try {
++      fresh = await getStream({video: {...video, facingMode: {exact: next}}, audio: false});
++    } catch{
++      fresh = await getStream({video: {...video, facingMode: next}, audio: false});
++    }
++    const track = fresh.getVideoTracks()[0];
++    if(!track || !this.stream) {
++      fresh.getTracks().forEach((t) => t.stop());
++      return this.config.facingMode;
++    }
++    this.stream.getVideoTracks().forEach((t) => {
++      this.stream.removeTrack(t);
++      t.stop();
++    });
++    this.stream.addTrack(track);
++    this.config.facingMode = next;
++    this.config.videoDeviceId = undefined;
++    if(this.drawVideo) {
++      this.drawVideo.srcObject = this.stream;
++      await this.drawVideo.play().catch(() => {});
++    }
++    return next;
++  }
++
+   // Centre-crop the camera feed to a square and scale it into the output canvas.
+   private drawCroppedFrame() {
+     const v = this.drawVideo;

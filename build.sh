@@ -37,6 +37,10 @@ pnpm exec vite build
 # tweb Vite'da `copyPublicDir: false`: statik fayllar (shriftlar, ikonka shrifti tgico, emoji rasmlari, tovushlar, manifest) yig'ishga KIRMAYDI — qo'lda ko'chiramiz.
 # `public/` da eski tayyor yig'ma ham bor (js/html/version) — uni ko'chirmaymiz, faqat statikni.
 for f in assets changelogs browserconfig.xml site.webmanifest site_apple.webmanifest; do [ -e "public/$f" ] && cp -R "public/$f" dist/; done
+# Ovozli xabar uchun ishchilar (yozish/ochish: decoder/encoder/wave, recorder) va embed/snapshot sahifalari ham kerak —
+# tweb'ning o'z deploy skripti ham ularni saqlaydi (keepAsset.js). Ularsiz ovozli xabar yuborilmaydi.
+for f in public/*Worker.min.js public/*Worker.min.wasm public/recorder.min.js public/embed.html public/snapshot.html; do [ -e "$f" ] && cp "$f" dist/; done
+[ -f dist/decoderWorker.min.js ] && [ -f dist/waveWorker.min.js ] || { echo "XATO: ovozli xabar ishchilari (decoderWorker/waveWorker) yo'q"; exit 1; }
 [ -f dist/assets/fonts/tgico.woff ] || { echo "XATO: dist/assets/fonts/tgico.woff yo'q — ikonkalar chiqmaydi"; exit 1; }
 node -e 'const fs=require("fs");const notes=JSON.parse(fs.readFileSync("../toza-changelog.json","utf8"));fs.writeFileSync("dist/toza-version.txt",JSON.stringify({v:process.env.VITE_TOZA_BUILD,notes:notes.slice(0,3)}))'
 rm -rf ../dist && cp -R dist ../dist
