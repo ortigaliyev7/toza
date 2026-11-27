@@ -281,3 +281,43 @@ export function eyeCareLayers(c: EyeCare): {warm: string; dim: number} {
   const a = [0, 0.14, 0.24, 0.34][c.warm] || 0.14;
   return {warm: `rgba(255, 140, 40, ${a})`, dim: [0, 0.12, 0.24, 0.36][c.dim] || 0};
 }
+
+// ---------------------------------------------------------------- kanal va guruhlarni saralash
+export type ChatInfo = {id: string; name: string; kind: 'channel' | 'group'; unread: number; lastMsg: number; muted: boolean; archived: boolean; opened?: number};
+export type ChatFilter = 'all' | 'channels' | 'groups' | 'notOpened' | 'unreadMany' | 'unread' | 'silent' | 'muted' | 'archived';
+/** Toza qachondan beri ochilgan chatlarni eslab boryapti (sekund) — shunga qarab «ochilmagan» hisoblanadi. */
+export function notOpened(c: ChatInfo, now: number, trackSince: number, days = 30): boolean {
+  const edge = now - days * DAY;
+  if(c.opened) return c.opened < edge;
+  if(trackSince && trackSince <= edge) return true;                  // kuzatuv uzoq yurgan, lekin bir marta ham ochilmagan
+  return c.unread >= 20;                                              // kuzatuv yangi: ko'p o'qilmagan bo'lsa, demak ochilmagan
+}
+export function matchChat(c: ChatInfo, f: ChatFilter, now: number, trackSince = 0): boolean {
+  switch(f) {
+    case 'all': return true;
+    case 'channels': return c.kind === 'channel';
+    case 'groups': return c.kind === 'group';
+    case 'notOpened': return notOpened(c, now, trackSince);
+    case 'unreadMany': return c.unread >= 50;
+    case 'unread': return c.unread > 0;
+    case 'silent': return !!c.lastMsg && c.lastMsg < now - 30 * DAY;
+    case 'muted': return c.muted;
+    case 'archived': return c.archived;
+  }
+}
+export function sortChats(list: ChatInfo[], by: 'unread' | 'opened' | 'active' | 'name'): ChatInfo[] {
+  const byName = (a: ChatInfo, b: ChatInfo) => a.name.localeCompare(b.name);
+  const cmp: Record<typeof by, (a: ChatInfo, b: ChatInfo) => number> = {
+    unread: (a, b) => b.unread - a.unread || byName(a, b),
+    opened: (a, b) => (a.opened || 0) - (b.opened || 0) || b.unread - a.unread,
+    active: (a, b) => (a.lastMsg || 0) - (b.lastMsg || 0) || byName(a, b),
+    name: byName
+  };
+  return [...list].sort(cmp[by]);
+}
+/** «3 kun oldin», «2 oy oldin». */
+export function agoText(sec: number, now: number): string {
+  if(!sec) return '';
+  const d = Math.floor((now - sec) / DAY);
+  return d < 1 ? 'bugun' : d < 30 ? `${d} kun oldin` : d < 365 ? `${Math.floor(d / 30)} oy oldin` : `${Math.floor(d / 365)} yil oldin`;
+}

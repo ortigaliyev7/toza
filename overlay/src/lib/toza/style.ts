@@ -61,8 +61,8 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-chips::-webkit-scrollbar{display:none}
 .tz-pop .tz-chips button{flex:none;height:34px!important;border-radius:17px!important;padding:0 12px!important;font-weight:600!important;font-size:13px!important;color:var(--tx2)!important}
 .tz-pop .tz-chips button.on{background:var(--btn)!important;color:#fff!important;box-shadow:none!important}
-.tz-cc-bar{display:flex;align-items:center;gap:6px;margin-top:4px!important}
-.tz-cc-bar .tz-sub{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.tz-cc-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:4px!important}
+.tz-cc-bar .tz-sub{flex:1 0 auto;white-space:nowrap;font-size:12.5px}
 .tz-pop button.tz-mini{height:32px!important;padding:0 10px!important;font-size:12.5px!important;border-radius:12px!important}
 .tz-cc-list{max-height:52vh;overflow:auto;background:var(--card);border:1px solid var(--cb);border-radius:18px;padding:0 12px!important;margin-top:8px!important;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .tz-cc-row{cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -75,6 +75,7 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-pop button.tz-danger{background:var(--bd)!important;color:#fff!important}
 .tz-cc-confirm button{width:100%;margin-top:8px}
 .tz-sel{flex:none;height:36px;padding:0 8px;border-radius:10px;border:1px solid var(--cb);background:var(--in);color:var(--tx);font:inherit}
+.tz-cc-badge{flex:none;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--btn);color:#fff;font-size:12.5px;font-weight:600;display:grid;place-items:center;box-sizing:border-box}
 .tz-hud{position:absolute;left:50%;top:14%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:16px;background:rgba(0,0,0,.62);color:#fff;font:500 15px/1.2 var(--font-regular,system-ui,sans-serif);opacity:0;pointer-events:none;transition:opacity .18s;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tz-hud.on{opacity:1}
 .tz-hud:has(button).on{pointer-events:auto}

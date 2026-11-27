@@ -13,6 +13,7 @@ import {mountQuickBar} from './quickbar';
 import {startAutoUpdate} from './update';
 import {startEyeCare} from './eyecare';
 import {startPlayer} from './player';
+import {startOpenTracking} from './opened';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -349,6 +350,7 @@ export function startTozaBackup() {
   try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
   try { startEyeCare(); } catch{ /* ko'z asrash muhim emas */ }
   try { startPlayer(); } catch{ /* pleyer qo'shimchalari muhim emas */ }
+  startOpenTracking().catch((): void => undefined);
   document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));
