@@ -9,6 +9,7 @@ import {injectGhosts} from './ghost';
 import {anyGhost, applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
 import {matchKeyword} from './tools-core';
 import {bindTranslitKeys} from './translit';
+import {mountQuickBar} from './quickbar';
 
 const LS_CODE = 'toza_code';
 const LS_ON = 'toza_on';
@@ -340,6 +341,7 @@ export function startTozaBackup() {
   rootScope.addEventListener('history_append', ({message}: any) => { onKeyword(message).catch((): void => undefined); });
   applyFlags();
   bindTranslitKeys();
+  try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
   document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
   rootScope.addEventListener('history_multiappend', on((message: any) => capture(message)));
   rootScope.addEventListener('message_edit', on(({message}: any) => capture(message, true)));

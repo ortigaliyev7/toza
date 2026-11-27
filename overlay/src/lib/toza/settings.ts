@@ -11,6 +11,8 @@ import type {TozaFlags} from './flags';
 import {mediaNode} from './media-view';
 import {cyrillicToLatin, latinToCyrillic, parseKeywords} from './tools-core';
 import {convertComposer} from './translit';
+import {icon} from './icons';
+import {FLAGS_EVENT} from './quickbar';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: (Node | string)[]) => {
   const el = document.createElement(tag);
@@ -20,19 +22,28 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, 
   kids.forEach((k) => el.append(k));
   return el;
 };
-const INPUT = 'width:100%;box-sizing:border-box;padding:10px;border-radius:12px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;font:inherit;';
+const INPUT = '';
 const fmtDate = (s: number) => new Date(s * 1000).toLocaleString();
 
-/** Belgi katakchasi (tweb'ning uslubi oddiy checkbox'ni yashiradi). */
-function check(label: string, sub: string, get: () => boolean, set: (v: boolean) => any) {
-  const box = h('span', {style: 'flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--ac,#4A5AE8);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;line-height:1;'});
-  const paint = () => { const on = get(); box.textContent = on ? '✓' : ''; box.style.background = on ? 'var(--ac,#4A5AE8)' : 'transparent'; };
-  paint();
+/** Sozlama qatori: rangli ikonka, nom, izoh va o'ng tomonda almashtirgich (Toza dizayni). */
+function check(label: string, sub: string, get: () => boolean, set: (v: boolean) => any, ic = 'read') {
+  const sw = h('span', {className: 'tz-sw'});
+  const paint = () => { const on = get(); sw.classList.toggle('on', on); row.setAttribute('aria-checked', String(on)); };
   const toggle = async() => { await set(!get()); paint(); };
-  return h('div', {role: 'checkbox', tabIndex: 0, style: 'display:flex;gap:10px;align-items:flex-start;margin:8px 0;padding:10px;border-radius:12px;background:rgba(127,127,127,.12);cursor:pointer;user-select:none;',
+  const row = h('div', {className: 'tz-row tz-click', role: 'switch', tabIndex: 0,
     onclick: toggle, onkeydown: (e: KeyboardEvent) => { if(e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } }},
-  box, h('div', {}, h('div', {style: 'font-weight:600'}, label), h('div', {className: 'tz-sub'}, sub)));
+  h('span', {className: 'tz-ic'}, icon(ic)), h('div', {className: 'tz-tx'}, label, ...(sub ? [h('div', {className: 'tz-sub'}, sub)] : [])), sw);
+  paint();
+  (row as any).tzPaint = paint;
+  return row;
 }
+/** Boshqa oynaga o'tadigan qator (o'ngda ›). */
+function nav(ic: string, label: string, sub: string, fn: () => any, soft = false) {
+  return h('div', {className: 'tz-row tz-click', role: 'button', tabIndex: 0, onclick: fn, onkeydown: (e: KeyboardEvent) => { if(e.key === 'Enter') fn(); }},
+    h('span', {className: 'tz-ic' + (soft ? ' tz-soft' : '')}, icon(ic)), h('div', {className: 'tz-tx'}, label, ...(sub ? [h('div', {className: 'tz-sub'}, sub)] : [])), h('span', {className: 'tz-chev'}, icon('chevron', 18)));
+}
+/** Faqat ma'lumot qatori. */
+const info = (ic: string, label: string, sub: string) => h('div', {className: 'tz-row'}, h('span', {className: 'tz-ic tz-soft'}, icon(ic)), h('div', {className: 'tz-tx'}, label, h('div', {className: 'tz-sub'}, sub)));
 
 // ---------------------------------------------------------------- hikoyalar
 async function downloadStory(peerId: number, story: any, name: string) {
@@ -71,26 +82,34 @@ export function openTozaSettings() {
   const show = (...nodes: Node[]) => panel.replaceChildren(...nodes);
   const sub = (t: string, ...k: Node[]) => show(title(t), ...k, row(btn('Orqaga', () => main())));
 
-  const flag = (k: keyof TozaFlags, label: string, subText: string) => check(label, subText, () => getFlags()[k], async(v) => { await setFlags({[k]: v}); updateReadButton(); });
+  const flag = (k: keyof TozaFlags, ic: string, label: string, subText: string) => check(label, subText, () => getFlags()[k], async(v) => { await setFlags({[k]: v}); updateReadButton(); window.dispatchEvent(new Event(FLAGS_EVENT)); }, ic);
 
   function main() {
+    const ghostRows = [
+      flag('noRead', 'read', 'Yashirin o\'qish', '«O\'qildi» va «tinglandi» yuborilmaydi.'),
+      flag('noStoryView', 'story', 'Yashirin hikoya', 'Hikoyani bildirmay ko\'rasiz.'),
+      flag('noOnline', 'ghost', 'Offlayn ko\'rinish', 'Toza ochiq bo\'lsa ham «onlayn» bo\'lmaysiz.'),
+      flag('noTyping', 'typing', '«Yozmoqda...» yashirish', 'Yozayotganingiz ko\'rinmaydi.')
+    ];
+    const repaint = () => ghostRows.forEach((r: any) => r.tzPaint?.());
+    window.addEventListener(FLAGS_EVENT, repaint);
+    const closeObs = new MutationObserver(() => { if(!back.isConnected) { window.removeEventListener(FLAGS_EVENT, repaint); closeObs.disconnect(); } });
+    closeObs.observe(document.body, {childList: true});
+    const kwOn = keywordsOn(), kwN = parseKeywords(keywordsRaw()).length;
     show(
       title('Toza sozlamalari'),
-      sec('Ko\'rinmas rejim',
-        flag('noRead', '«O\'qildi» belgisini yubormaslik', 'Xabarni o\'qisangiz ham suhbatdosh ikki belgini ko\'rmaydi. Ovozli xabar va dumaloq video «tinglandi» ham bo\'lmaydi. Chatda «👁 O\'qildi yuborish» tugmasi chiqadi.'),
-        flag('noTyping', '«Yozmoqda...» ko\'rsatmaslik', 'Xabar yozayotganingizni suhbatdosh ko\'rmaydi.'),
-        flag('noOnline', 'Doim «offlayn» ko\'rinish', 'Toza ochiq bo\'lsa ham «onlayn» holati yuborilmaydi. Telegram\'ning maxfiylik sozlamasi bilan birga ishlaydi.'),
-        flag('noStoryView', 'Hikoyani yashirin ko\'rish', 'Hikoya egasi sizni ko\'rganlar ro\'yxatida ko\'rmaydi.'),
-        note('Eslatma: telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.')),
-      sec('Bir martalik media',
-        check('Bir martalik rasm va videoni saqlash', isPaid() ? 'Ko\'rilgach yo\'qoladigan rasm/video zaxiraga yoziladi. Toza zaxirasi yoqilgan bo\'lishi kerak.' : 'Sharpa obunasi va Toza zaxirasi bilan ishlaydi.', saveOnceOn, setSaveOnce),
-        row(btn('Saqlanganlarni ko\'rish', () => viewOnce()))),
-      sec('Hikoyalar', note('Kontaktlaringizning hozirgi hikoyalarini ko\'rib, rasm yoki video qilib saqlash.'), row(btn('Hikoyalarni ochish', () => viewStories()))),
-      sec('Kalit so\'zlar', note(keywordsOn() ? `Yoqilgan: ${parseKeywords(keywordsRaw()).length} ta so'z.` : 'Guruh yoki chatda ismingiz yoki belgilangan so\'z chiqsa xabar beradi.'), row(btn('Sozlash', () => viewKeywords()))),
-      sec('Lotin ↔ Kirill', note('Yozish maydonida: Alt+K — kirillga, Alt+L — lotinga. Matnni shu yerda ham o\'girish mumkin.'), row(btn('O\'girgich', () => viewTranslit()))),
-      sec('Tarjima', note('Xabar ustida o\'ng tugma (telefonda bosib turish) → «Tarjima qilish». Telegram\'ning o\'z tarjimasi, o\'zbek tili ham bor. Tilni Sozlamalar → Til bo\'limida tanlaysiz.')),
-      sec('Akkauntlar va papkalar', note('Bir nechta akkaunt: chap menyuda akkaunt nomi ustidan «Akkaunt qo\'shish» (3 tagacha). Papkalar va filtrlar: Sozlamalar → Chat papkalari (masalan, «O\'qilmagan», «Shaxsiy»).')),
-      sec('Ko\'rinish', note('Rang mavzusi: «Toza profilim». Shrift o\'lchami, chat foni va tungi rejim: Sozlamalar → Umumiy sozlamalar.'))
+      sec('Ko\'rinmas rejim', ...ghostRows, h('div', {className: 'tz-hint'}, 'Dastlabki uchtasi bosh ekranda ham bor. Telefondagi Telegram ochiq bo\'lsa, u o\'zi «onlayn» va «o\'qildi» yuboradi.')),
+      sec('Saqlash',
+        check('Bir martalik media', isPaid() ? 'Ko\'rilgach yo\'qoladigan rasm/video zaxiraga yoziladi.' : 'Sharpa obunasi va Toza zaxirasi bilan ishlaydi.', saveOnceOn, setSaveOnce, 'timer'),
+        nav('gallery', 'Saqlangan bir martalik media', '', () => viewOnce()),
+        nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
+      sec('Qulayliklar',
+        nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
+        nav('abc', 'Lotin ↔ Kirill', 'Yozayotganda Alt+K / Alt+L', () => viewTranslit())),
+      sec('Telegram\'ning o\'zida',
+        info('translate', 'Tarjima', 'Xabarni bosib turing → «Tarjima qilish»'),
+        info('users', 'Akkauntlar va papkalar', 'Menyu → akkaunt qo\'shish (3 tagacha); Sozlamalar → Chat papkalari'),
+        info('palette', 'Ko\'rinish', 'Rang: «Toza profilim». Shrift, fon, tungi rejim: Sozlamalar → Umumiy'))
     );
   }
 
@@ -152,10 +171,10 @@ export function openTozaSettings() {
     ta.value = keywordsRaw();
     const msg = h('div');
     sub('Kalit so\'zlar',
-      check('Kalit so\'z chiqsa xabar berish', 'Toza ochiq turganda ekranda (ruxsat bersangiz tizim bildirishnomasi bilan). Ochiq turgan chat uchun xabar berilmaydi.', keywordsOn, (v) => {
+      h('div', {className: 'tz-sec', style: 'padding-top:4px'}, check('Kalit so\'z chiqsa xabar berish', 'Toza ochiq turganda. Ochiq turgan chat uchun xabar berilmaydi.', keywordsOn, (v) => {
         setKeywordsOn(v);
         if(v && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().catch((): void => undefined);
-      }),
+      }, 'bell')),
       note('So\'zlarni vergul yoki yangi qator bilan ajrating (50 tagacha). Katta-kichik harf farqi yo\'q, so\'z boshidan qidiriladi: «ish» — «ishlar»ni topadi, «kishi»ni emas.'),
       ta, row(btn('Saqlash', () => { setKeywords(ta.value); msg.replaceChildren(note(`Saqlandi: ${parseKeywords(ta.value).length} ta so'z.`, '#2a9d4b')); }, true)), msg);
   }
