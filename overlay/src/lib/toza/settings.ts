@@ -10,7 +10,8 @@ import {getFlags, keywordsOn, keywordsRaw, saveOnceOn, setFlags, setKeywords, se
 import type {TozaFlags} from './flags';
 import {mediaNode} from './media-view';
 import {cyrillicToLatin, latinToCyrillic, parseKeywords} from './tools-core';
-import {convertComposer} from './translit';
+import {convertComposer, sendScript, setSendScript, setShowScript, showScript} from './translit';
+import type {Script} from './translit';
 import {icon} from './icons';
 import {FLAGS_EVENT} from './quickbar';
 
@@ -42,6 +43,21 @@ function nav(ic: string, label: string, sub: string, fn: () => any, soft = false
   return h('div', {className: 'tz-row tz-click', role: 'button', tabIndex: 0, onclick: fn, onkeydown: (e: KeyboardEvent) => { if(e.key === 'Enter') fn(); }},
     h('span', {className: 'tz-ic' + (soft ? ' tz-soft' : '')}, icon(ic)), h('div', {className: 'tz-tx'}, label, ...(sub ? [h('div', {className: 'tz-sub'}, sub)] : [])), h('span', {className: 'tz-chev'}, icon('chevron', 18)));
 }
+/** Uch tanlovli tugmalar qatori: O'zgartirmaslik / Lotin / Kirill. */
+function seg(get: () => Script, set: (v: Script) => void) {
+  const wrap = h('div', {className: 'tz-seg', role: 'radiogroup'});
+  const opts: [Script, string][] = [['off', 'O\'zgartirmaslik'], ['lat', 'Lotin'], ['cyr', 'Кирилл']];
+  const paint = () => wrap.querySelectorAll('button').forEach((b) => { const on = (b as HTMLElement).dataset.v === get(); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+  for(const [v, label] of opts) wrap.append(h('button', {type: 'button', role: 'radio', onclick: () => { set(v); paint(); }}, label));
+  wrap.querySelectorAll('button').forEach((b, i) => ((b as HTMLElement).dataset.v = opts[i][0]));
+  paint();
+  return wrap;
+}
+const scriptSummary = () => {
+  const n: Record<Script, string> = {off: '', lat: 'lotinda', cyr: 'kirillda'};
+  const a = showScript(), b = sendScript();
+  return [a !== 'off' ? `Chat ${n[a]}` : '', b !== 'off' ? `Yuborish ${n[b]}` : ''].filter(Boolean).join(' · ') || 'Alt+K / Alt+L, avtomatik rejim o\'chiq';
+};
 /** Faqat ma'lumot qatori. */
 const info = (ic: string, label: string, sub: string) => h('div', {className: 'tz-row'}, h('span', {className: 'tz-ic tz-soft'}, icon(ic)), h('div', {className: 'tz-tx'}, label, h('div', {className: 'tz-sub'}, sub)));
 
@@ -105,7 +121,7 @@ export function openTozaSettings() {
         nav('download', 'Hikoyalarni yuklab olish', 'Rasm yoki video qilib saqlash', () => viewStories())),
       sec('Qulayliklar',
         nav('bell', 'Kalit so\'zlar', kwOn ? `Yoqilgan · ${kwN} ta so'z` : 'O\'chiq', () => viewKeywords()),
-        nav('abc', 'Lotin ↔ Kirill', 'Yozayotganda Alt+K / Alt+L', () => viewTranslit())),
+        nav('abc', 'Lotin ↔ Kirill', scriptSummary(), () => viewTranslit())),
       sec('Telegram\'ning o\'zida',
         info('translate', 'Tarjima', 'Xabarni bosib turing → «Tarjima qilish»'),
         info('users', 'Akkauntlar va papkalar', 'Menyu → akkaunt qo\'shish (3 tagacha); Sozlamalar → Chat papkalari'),
@@ -183,7 +199,12 @@ export function openTozaSettings() {
     const ta = h('textarea', {rows: 6, placeholder: 'Matnni shu yerga yozing yoki qo\'ying', style: INPUT + 'resize:vertical;'}) as HTMLTextAreaElement;
     const msg = h('div');
     const conv = (fn: (s: string) => string) => { ta.value = fn(ta.value); };
-    sub('Lotin ↔ Kirill', ta,
+    sub('Lotin ↔ Kirill',
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Chatdagi xabarlar'),
+        seg(showScript, setShowScript), h('div', {className: 'tz-hint'}, 'O\'zbekcha xabarlar tanlangan yozuvda ko\'rinadi. Ruscha va inglizcha xabarlar o\'zgarmaydi. Asl matn saqlanadi.')),
+      h('div', {className: 'tz-sec'}, h('b', {}, 'Men yuboradigan xabarlar'),
+        seg(sendScript, setSendScript), h('div', {className: 'tz-hint'}, 'Yuborish bosilganda o\'zbekcha matn o\'zi o\'giriladi. Havola, emoji yoki formatlash bo\'lsa tegilmaydi. Qo\'lda: Alt+K kirillga, Alt+L lotinga.')),
+      h('b', {}, 'O\'girgich'), ta,
       row(btn('Kirillga', () => conv(latinToCyrillic), true), btn('Lotinga', () => conv(cyrillicToLatin)),
         btn('Nusxalash', async(b) => { await navigator.clipboard?.writeText(ta.value); b.textContent = 'Nusxalandi'; setTimeout(() => (b.textContent = 'Nusxalash'), 1500); })),
       row(btn('Yozish maydonidagi matnni o\'girish', () => { msg.replaceChildren(note(convertComposer() ? 'O\'girildi.' : 'Avval chatni oching va matn yozing.', '')); })), msg);

@@ -8,7 +8,7 @@ import {alertsOn, fmtDuration, notice, pushAlert, setAlertOpener} from './alerts
 import {injectGhosts} from './ghost';
 import {anyGhost, applyFlags, getFlags, keywords, keywordsOn, saveOnceOn} from './prefs';
 import {matchKeyword} from './tools-core';
-import {bindTranslitKeys} from './translit';
+import {bindTranslitKeys, startScriptModes} from './translit';
 import {mountQuickBar} from './quickbar';
 import {startAutoUpdate} from './update';
 
@@ -342,6 +342,7 @@ export function startTozaBackup() {
   rootScope.addEventListener('history_append', ({message}: any) => { onKeyword(message).catch((): void => undefined); });
   applyFlags();
   bindTranslitKeys();
+  try { startScriptModes(); } catch{ /* lotin/kirill rejimlari muhim emas */ }
   try { mountQuickBar(); } catch{ /* tezkor tugmalar muhim emas */ }
   try { startAutoUpdate(); } catch{ /* yangilanish tekshiruvi muhim emas */ }
   document.addEventListener('visibilitychange', () => { if(!document.hidden && anyGhost()) applyFlags(); });
