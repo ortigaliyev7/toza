@@ -487,3 +487,25 @@ test('ko\'z asrash: rejim va soat oralig\'i', () => {
   assert.match(l.warm, /rgba\(255, 140, 40, 0\.24\)/);
   assert.equal(l.dim, 0.12);
 });
+
+test('kanal/guruhlar: toifalar va saralash', () => {
+  const now = 1_800_000_000, D = 86400;
+  const mk = (o) => ({id: '-1', name: 'X', kind: 'channel', unread: 0, lastMsg: now, muted: false, archived: false, ...o});
+  // kuzatuv yangi: 20+ o'qilmagan bo'lsa «ochilmagan»
+  assert.equal(T.notOpened(mk({unread: 25}), now, now - 2 * D), true);
+  assert.equal(T.notOpened(mk({unread: 3}), now, now - 2 * D), false);
+  // kuzatuv uzoq: hech ochilmagan → ha; yaqinda ochilgan → yo'q
+  assert.equal(T.notOpened(mk({unread: 0}), now, now - 40 * D), true);
+  assert.equal(T.notOpened(mk({unread: 99, opened: now - D}), now, now - 40 * D), false);
+  assert.equal(T.notOpened(mk({opened: now - 45 * D}), now, now - 2 * D), true);
+  assert.equal(T.matchChat(mk({lastMsg: now - 40 * D}), 'silent', now), true);
+  assert.equal(T.matchChat(mk({lastMsg: 0}), 'silent', now), false);
+  assert.equal(T.matchChat(mk({kind: 'group'}), 'channels', now), false);
+  assert.equal(T.matchChat(mk({unread: 50}), 'unreadMany', now), true);
+  const l = [mk({id: 'a', name: 'B', unread: 5, lastMsg: now - 5}), mk({id: 'b', name: 'A', unread: 90, lastMsg: now - 50}), mk({id: 'c', name: 'C', unread: 0, lastMsg: now - 1})];
+  assert.deepEqual(T.sortChats(l, 'unread').map((c) => c.id), ['b', 'a', 'c']);
+  assert.deepEqual(T.sortChats(l, 'active').map((c) => c.id), ['b', 'a', 'c']);
+  assert.deepEqual(T.sortChats(l, 'name').map((c) => c.id), ['b', 'a', 'c']);
+  assert.equal(T.agoText(now - 3 * D, now), '3 kun oldin');
+  assert.equal(T.agoText(now - 70 * D, now), '2 oy oldin');
+});
