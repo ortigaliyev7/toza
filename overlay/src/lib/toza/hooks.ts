@@ -291,6 +291,7 @@ async function updateBadge() {
     if(!n) { badgeEl?.remove(); badgeEl = null; return; }
     if(!badgeEl) {
       badgeEl = document.createElement('button');
+      badgeEl.className = 'tz-chatfloat';
       badgeEl.setAttribute('style', 'position:fixed;top:66px;right:12px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:#e8860c;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
       badgeEl.onclick = () => { const p = currentPeer; import('./ui').then((m) => m.openTozaBackup({peerId: p})); };
       document.body.append(badgeEl);
@@ -316,6 +317,7 @@ export async function updateReadButton() {
     if(!getFlags().noRead || !currentPeer) { readBtn?.remove(); readBtn = null; return; }
     if(!readBtn) {
       readBtn = document.createElement('button');
+      readBtn.className = 'tz-chatfloat';
       readBtn.setAttribute('style', 'position:fixed;top:66px;right:150px;z-index:1000;border:0;border-radius:99px;padding:6px 12px;font:600 12px system-ui,sans-serif;color:#fff;background:var(--primary-color,#3390ec);box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer;');
       readBtn.title = 'Ko\'rinmas rejim yoqilgan: suhbatdosh xabari o\'qilganini ko\'rmaydi';
       readBtn.onclick = () => markReadNow(currentPeer);

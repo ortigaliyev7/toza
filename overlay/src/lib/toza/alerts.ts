@@ -18,6 +18,7 @@ let onOpen: (() => void) | null = null;
 function toast(title: string, body: string) {
   if(!box) {
     box = document.createElement('div');
+    box.className = 'tz-toasts';
     box.setAttribute('style', 'position:fixed;left:12px;bottom:12px;z-index:99999;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 24px));');
     document.body.append(box);
   }

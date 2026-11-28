@@ -26,7 +26,8 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;font-size:18px;background:var(--btn);box-shadow:none}
 .tz-sub{color:var(--tx2);font:500 13px/1.35 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif)}
 .tz-pop .tz-sub{margin:2px 0}
-.tz-quick{display:flex;gap:6px;padding:2px 10px 8px;flex:none;font-family:var(--font-regular,system-ui,-apple-system,Roboto,sans-serif)}
+.tz-quick{display:flex;gap:6px;padding:6px 10px 8px;flex:none;background:var(--surface-color,#fff);font-family:var(--font-regular,system-ui,-apple-system,Roboto,sans-serif)}
+#column-left.is-collapsed .tz-quick{display:none}
 .tz-quick button{flex:1 1 0;min-width:0;height:36px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;border:1px solid color-mix(in srgb,var(--primary-color,#3390ec) 22%,transparent);border-radius:18px;background:color-mix(in srgb,var(--primary-color,#3390ec) 8%,transparent);color:var(--secondary-text-color,#707579);font:600 12.5px/1 var(--font-regular,system-ui,-apple-system,Roboto,sans-serif);cursor:pointer;transition:background .18s,color .18s,transform .1s,box-shadow .18s;-webkit-tap-highlight-color:transparent}
 .tz-quick button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tz-quick button svg{flex:none}
@@ -142,6 +143,8 @@ position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.4);display:flex;align
 .tz-tabbar-on #new-menu{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
 .tz-tabbar-on .item-main{position:relative}
 }
+@media (max-width:600px){html.tz-tabbar-on body.is-left-column-shown .tz-toasts{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}}
+@media (max-width:925px){body.is-left-column-shown .tz-chatfloat{display:none!important}}
 .tz-tabbar-btn{flex:1;border:0;background:none;border-radius:27px;color:var(--primary-text-color,#000);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 12px var(--font-regular,system-ui,sans-serif);cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .tz-tabbar-btn.on{background:color-mix(in srgb,var(--primary-color,#3390ec) 16%,transparent);color:var(--primary-color,#3390ec)}
 .tz-tabbar-ic{position:relative;display:grid;place-items:center;width:28px;height:26px}
