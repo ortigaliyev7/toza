@@ -17,7 +17,7 @@ Toza Android ilovasi — **Trusted Web Activity** (TWA): Toza sayti Chrome orqal
 ## Qoidalar (nima uchun ba'zi narsalar o'chirildi)
 
 **Telegram API shartlari** (core.telegram.org/api/terms):
-- 1.4: «ko'rinmas rejim» («o'qildi»ni yashirish), «yozmoqda»ni yashirish va o'zi yo'qoladigan kontentni saqlab qolish **taqiqlangan**. Buzilsa Telegram 10 kun ichida api_id'ni o'chiradi va do'kondan olib tashlatadi. Shuning uchun **qoidalar rejimi** (`play.ts → isStrict`): ko'rinmas rejim (o'qildi, yozmoqda, offlayn, yashirin hikoya), bir martalik media saqlash va avto-o'chiriladigan xabarlarni ushlash o'chiq va menyuda ko'rinmaydi. Ilovada doim, saytda `STRICT_WEB = true` bo'lsa (api_id bitta — sayt buzsa ilova ham yopiladi).
+- 1.4: «ko'rinmas rejim» («o'qildi»ni yashirish), «yozmoqda»ni yashirish va o'zi yo'qoladigan kontentni saqlab qolish **taqiqlangan**. Buzilsa Telegram 10 kun ichida api_id'ni o'chiradi va do'kondan olib tashlatadi. Shuning uchun **qoidalar rejimi** (`play.ts → isStrict`): ko'rinmas rejim (o'qildi, yozmoqda, offlayn, yashirin hikoya), bir martalik media saqlash va avto-o'chiriladigan xabarlarni ushlash o'chiq va menyuda ko'rinmaydi. Ilovada doim. Saytda `STRICT_WEB = false` (egasining qarori, 2026-11-28): saytda ko'rinmas rejim qoladi. Xavf: api_id bitta, Telegram saytdagi buzilishni topsa, ilova ham to'xtaydi.
 - 2.3–2.4: nomda «Telegram» yo'q, Telegram logotipi yo'q (o'z «T» belgimiz).
 - 2.2: do'kon tavsifida «norasmiy Telegram klienti» ekani aniq yozilgan.
 - 3.2: barcha pul topish usullari tavsifda yozilgan (faqat obuna).

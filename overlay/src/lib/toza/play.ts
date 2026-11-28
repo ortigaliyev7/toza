@@ -10,8 +10,8 @@ const PLAY_BILLING = 'https://play.google.com/billing';
 /** Android paket nomi (android/app/build.gradle → applicationId bilan bir xil). */
 export const PKG = 'uz.toza.app';
 
-/** Veb-saytda ham qoidalar rejimi (Telegram api_id bitta: veb buzsa, ilova ham yopiladi). */
-export const STRICT_WEB = true;
+/** Veb-saytda ham qoidalar rejimi. Egasining qarori (2026-11-28): faqat Play ilovasida, saytda ko'rinmas rejim qoladi. */
+export const STRICT_WEB = false;
 
 /** Google Play ilovasi ichida ochilganmi. */
 export function isPlayApp(): boolean {
