@@ -20,3 +20,9 @@ ENV FRAME_ANCESTORS="'self' https://sharpa-production.up.railway.app https://*.t
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY toza-br.conf /etc/nginx/toza-br.conf
 COPY --from=build /w/dist /usr/share/nginx/html
+# Maxfiylik siyosati, shartlar, ma'lumot o'chirish (Google Play talabi): /privacy.html, /terms.html, /delete.html
+COPY site/ /usr/share/nginx/html/
+# Android ilova (Google Play): /.well-known/assetlinks.json ANDROID_SHA256 dan yoziladi (tools/assetlinks.sh)
+ENV ANDROID_PACKAGE="uz.toza.app" ANDROID_SHA256=""
+COPY tools/assetlinks.sh /docker-entrypoint.d/40-toza-assetlinks.sh
+RUN chmod +x /docker-entrypoint.d/40-toza-assetlinks.sh

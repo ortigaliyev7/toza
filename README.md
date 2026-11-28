@@ -16,6 +16,9 @@ Chap menyu → **Toza zaxira**. Yoqilgach brauzer xabarlarni (matn) mahalliy arx
 - Bo'shliqni to'ldirish: Toza ochilganda, yopiq paytda kelgan xabarlar shaxsiy chatlar tarixidan olinib arxivga yoziladi (`hooks.ts → backfill`, 40 tagacha chat). Yopiq paytda kelib, o'sha zahoti o'chirilgan xabarni qaytarib bo'lmaydi.
 - Sinov: `node --experimental-strip-types --test tests/core.test.mjs`.
 
+## Google Play ilovasi
+`android/` — Trusted Web Activity (paket `uz.toza.app`), obuna Google Play Billing orqali (`overlay/src/lib/toza/play.ts`). Qoidalar rejimi (`isStrict`): Telegram API shartlari 1.4 bo'yicha ko'rinmas rejim va bir martalik media o'chiq (faqat Play ilovasida; saytda `STRICT_WEB = false`). Hujjatlar va egasi bajaradigan qadamlar: `docs/play/` (`QADAMLAR.md`). Railway: `ANDROID_SHA256` (assetlinks). Sahifalar: `/privacy.html`, `/terms.html`, `/delete.html` (`site/`).
+
 ## Kalitlar
 `api_id` / `api_hash` — `my.telegram.org` dan (ilova nomi «Toza»). Repoga YOZILMAYDI: mahalliy yig'ishda `.env.local` (`.env.example` ga qarang), Railway'da Variables. Zaxira serveri: `VITE_TB_URL` (Sharpa bot servisining ochiq manzili; botda `TB_ORIGINS` = Toza manzili).
 

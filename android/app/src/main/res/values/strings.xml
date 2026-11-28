@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- «Telegram» so'zi nomda yo'q (Telegram API shartlari 2.3) -->
+    <string name="appName">Toza</string>
+    <string name="providerAuthority">uz.toza.app.fileprovider</string>
+</resources>

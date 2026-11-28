@@ -1,0 +1,56 @@
+plugins { id 'com.android.application' }
+
+// Sozlamalar: muhit o'zgaruvchilari (GitHub Actions) yoki gradle.properties.
+def env = { String k, String d = null -> System.getenv(k) ?: (project.findProperty(k) ?: d) }
+def host = env('TOZA_HOST', project.findProperty('tozaHost'))
+def versionCodeNum = (env('TOZA_VERSION_CODE', '1') as String).toInteger()
+def versionNameStr = env('TOZA_VERSION_NAME', '1.0.0')
+
+android {
+    namespace 'uz.toza.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'uz.toza.app'           // Play'da o'zgarmaydi! overlay/src/lib/toza/play.ts → PKG bilan bir xil
+        minSdk 24
+        targetSdk 36                          // Google Play talabi: eng yangi Android API
+        versionCode versionCodeNum
+        versionName versionNameStr
+
+        resValue 'string', 'hostName', host
+        resValue 'string', 'launchUrl', "https://${host}/?tz_app=play"
+        resValue 'string', 'asset_statements', """[{\\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"], \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://${host}\\"}}]"""
+        manifestPlaceholders = [hostName: host]
+    }
+
+    signingConfigs {
+        release {
+            // Yuklash kaliti (upload key). GitHub → Settings → Secrets: TOZA_KEYSTORE_BASE64, TOZA_KEYSTORE_PASSWORD, TOZA_KEY_ALIAS, TOZA_KEY_PASSWORD
+            def ks = System.getenv('TOZA_KEYSTORE_FILE')
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('TOZA_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('TOZA_KEY_ALIAS')
+                keyPassword System.getenv('TOZA_KEY_PASSWORD') ?: System.getenv('TOZA_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv('TOZA_KEYSTORE_FILE')) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.8.0'
+    // Google Play Billing veb-sahifaga (Digital Goods API) — obuna faqat Play orqali
+    implementation 'com.google.androidbrowserhelper:billing:1.2.0'
+}

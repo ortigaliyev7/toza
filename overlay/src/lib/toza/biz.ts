@@ -8,6 +8,8 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {keyOf, mergeBiz} from './core';
 import type {BizItem} from './core';
 import {refreshGhosts, serverUrl, store, watching} from './hooks';
+import {isPlayApp, playBuy, playRestore} from './play';
+import type {PlayPlanId} from './play';
 
 const LS_K = 'toza_sharpa_k', LS_SINCE = 'toza_biz_since', LS_BOT = 'toza_sharpa_bot', LS_PAID = 'toza_biz_paid', LS_LOCKED = 'toza_biz_locked';
 const PULL_MS = 60_000;
@@ -63,6 +65,7 @@ export function disconnectSharpa() {
 
 /** Sharpa botida tarif tanlash oynasini ochadi (Toza ichida, bot chatida). Ulanmagan bo'lsa avval ulaydi. */
 export async function openPremium(): Promise<void> {
+  if(isPlayApp()) throw new Error('use_play');                           // Play ilovasida tashqi to'lovga yo'naltirilmaydi (buyInPlay)
   if(!ls.get(LS_K)) await connectSharpa();
   const bot = String(bizState.bot || ls.get(LS_BOT) || '').replace(/^@/, '');
   if(!bot) throw new Error('no_bot');
@@ -71,6 +74,25 @@ export async function openPremium(): Promise<void> {
   if(!peer?.id) throw new Error('no_bot');
   await mgr.appMessagesManager.startBot(peer.id, undefined, 'x_buy');
   (hotReloadGuard as any).appImManager?.setInnerPeer?.({peerId: peer.id});
+}
+
+/** Sharpa'ga qurilma tokeni bilan so'rov (Play xaridini tekshirish uchun). */
+const devApi = (path: string, init: RequestInit = {}) => api(path, {...init, headers: {...(init.headers as any || {}), 'X-TB-Dev': ls.get(LS_K)}});
+
+/** Google Play ilovasida obuna olish: Play oynasi → Sharpa xaridni Google'dan tekshiradi → obuna yoqiladi. */
+export async function buyInPlay(id: PlayPlanId): Promise<void> {
+  if(!ls.get(LS_K)) await connectSharpa();
+  await playBuy(id, devApi);
+  ls.set(LS_SINCE, '');
+  await pullBiz();
+}
+
+/** Google Play xaridlarini tiklash (yangi telefon / qayta o'rnatish). Qaytaradi: topilgan obunalar soni. */
+export async function restoreInPlay(): Promise<number> {
+  if(!ls.get(LS_K)) await connectSharpa();
+  const n = await playRestore(devApi);
+  if(n) { ls.set(LS_SINCE, ''); await pullBiz(); }
+  return n;
 }
 
 let pulling: Promise<number> | null = null;
