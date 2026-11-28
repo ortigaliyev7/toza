@@ -1,5 +1,5 @@
 // Bosh ekrandagi (chatlar ro'yxati tepasida) ko'rinmas rejim tezkor tugmalari: yashirin o'qish, yashirin hikoya, offlayn.
-// tweb DOM: `#column-left .item-main > .sidebar-header` dan keyin qo'yiladi (tweb'ning o'z elementlariga tegmaydi).
+// tweb DOM: chatlar ro'yxati ustidagi `.chatlist-overlay` panelining boshiga qo'yiladi (tweb'ning o'z elementlariga tegmaydi).
 import {icon} from './icons';
 import {ensureStyle} from './style';
 import {getFlags, setFlags} from './prefs';
@@ -49,19 +49,26 @@ function build(): HTMLElement {
   return el;
 }
 
-/** Tugmalar qatorini joyiga qo'yadi va tweb sarlavhani qayta chizsa ham qaytaradi. */
+/** Tugmalar qatorini joyiga qo'yadi: chatlar ro'yxati ustidagi panel (`.chatlist-overlay`) ning eng tepasiga,
+ *  papkalar qatoridan oldin. Bu panel hikoyalar (stories) ochilib-yopilganda ular bilan birga siljiydi va
+ *  tweb ro'yxatni uning balandligiga qarab pastga suradi. Avval tugmalar sarlavhadan keyin turardi va tweb
+ *  hikoyalarni qayta chizganda hikoyalar tugmalar ustiga chiqib, pastda bo'sh joy qolardi. */
+const OVERLAY = '#column-left .item-main .connection-status-bottom > .chatlist-overlay';
 export function mountQuickBar() {
   ensureStyle();
   window.addEventListener(FLAGS_EVENT, paint);
+  let watched: Element | null = null;
+  const mo = new MutationObserver(() => place());
   const place = () => {
-    const header = document.querySelector('#column-left .item-main > .sidebar-header');
-    if(!header) return;
-    if(bar && header.nextElementSibling === bar) return;
+    const overlay = document.querySelector(OVERLAY);
+    if(!overlay) return;
+    if(overlay !== watched) { mo.disconnect(); watched = overlay; mo.observe(overlay, {childList: true}); }
+    if(bar && overlay.firstElementChild === bar) return;
     bar ||= build();
-    header.after(bar);
+    overlay.prepend(bar);
     paint();
   };
   place();
   new MutationObserver(() => place()).observe(document.getElementById('column-left') || document.body, {childList: true, subtree: false});
-  setTimeout(place, 1500);
+  [500, 1500, 4000].forEach((ms) => setTimeout(place, ms));
 }
